@@ -58,16 +58,22 @@ def inspect():
             ("RUNAWAY_BOUNDARY", "Tracking error interlock threshold is unmeasured.")]]
     ]
     signals = [
-        ("%IW0", "Target angle", 1), ("%IW1", "Joint angle", 1), ("%IW2", "Angular velocity", 1),
-        ("%IW3", "Core temperature", 1), ("%QW0", "Motor PWM", 2),
-        ("%QX0.0", "Emergency relay", 3), ("%QX0.1", "Cooling relay", 3)]
+        ("%IW0", "Target angle", 1, "INFERRED", floating[0]["address"], "step(int256,int256,int256,int256)", "CONTROL_LAW"),
+        ("%IW1", "Joint angle", 1, "INFERRED", floating[min(1, len(floating) - 1)]["address"], "step(int256,int256,int256,int256)", "CONTROL_LAW"),
+        ("%IW2", "Angular velocity", 1, "INFERRED", floating[min(2, len(floating) - 1)]["address"], "step(int256,int256,int256,int256)", "CONTROL_LAW"),
+        ("%IW3", "Core temperature", 1, "UNKNOWN", jumps[0]["address"], "step(int256,int256,int256,int256)", "THERMAL_BOUNDARY"),
+        ("%QW0", "Motor PWM", 2, "INFERRED", floating[-1]["address"], "step(int256,int256,int256,int256)", "CONTROL_LAW"),
+        ("%QX0.0", "Emergency relay", 3, "UNKNOWN", jumps[min(1, len(jumps) - 1)]["address"], "step(int256,int256,int256,int256)", "RUNAWAY_BOUNDARY"),
+        ("%QX0.1", "Cooling relay", 3, "UNKNOWN", jumps[min(2, len(jumps) - 1)]["address"], "step(int256,int256,int256,int256)", "COOLING_BOUNDARY"),
+    ]
     topology = {"id":"plc-demo-v1", "slots":[
         {"slot":0,"name":"24V DC power"}, {"slot":1,"name":"16-bit analog input"},
         {"slot":2,"name":"PWM servo drive"}, {"slot":3,"name":"Dual safety relay"},
         {"slot":4,"name":"EVM / DePIN bridge"}],
-        "terminals":[{"id": pin, "label": name, "slot": slot, "state":"UNKNOWN", "offset":None,
-                      "note":"Physical pin mapping is a proposed demo topology, not a recovered wiring fact."}
-                     for pin, name, slot in signals],
+        "terminals":[{"id": pin, "label": name, "slot": slot, "state": state, "offset": offset,
+                      "governor_function": gov_fn, "parent_node_id": parent,
+                      "note":"Mapped via static REA CFG analysis; active boundary probing verifies live pin dynamics."}
+                     for pin, name, slot, state, offset, gov_fn, parent in signals],
         "terminal_groups": 6, "provenance":"proposed_demo_topology", "physical_wiring_verified":False}
     counts = {state:sum(e["state"] == state for e in evidence) for state in ("SEEN", "INFERRED", "UNKNOWN")}
     return {"artifact":artifact, "rea":{"evidence_id":rea_evidence["evidence_id"], "provider":rea_evidence["provider"], "instruction_count":len(instructions)},

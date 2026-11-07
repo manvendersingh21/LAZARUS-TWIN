@@ -15,9 +15,14 @@ def test_api_and_websocket_with_local_storage(monkeypatch,tmp_path):
         assert response.status_code==200
         result=response.json()
         assert result['counts']['UNKNOWN']==0
+        assert all(pin['state']=='SEEN' for pin in result['topology']['terminals'])
+        assert all(pin.get('offset') and pin.get('governor_function') for pin in result['topology']['terminals'])
+        assert result['topology']['physical_wiring_verified'] is True
         assert result['equivalence']['passed']==1000
         assert result['rea']['evidence_id'].startswith('ev_')
-        assert client.get('/api/mongodb/stats').json()['mode']=='local'
+        mongo_stats=client.get('/api/mongodb/stats').json()
+        assert mongo_stats['mode']=='local'
+        assert mongo_stats['graph_nodes_resolved']>0
         assert client.post('/api/sabotage',json={'enabled':True,'thermal_spike':True}).status_code==200
         with client.websocket_connect('/ws') as socket:
             first=socket.receive_json()

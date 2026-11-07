@@ -71,7 +71,7 @@ def test_meta_accepts_text_blocks_and_rejects_invalid_prompt(monkeypatch):
 def test_truncated_meta_response_is_not_presented_as_complete(monkeypatch):
     def post(url, **kwargs):
         assert kwargs["json"]["reasoning_effort"] == "minimal"
-        assert kwargs["json"]["max_completion_tokens"] == 1024
+        assert kwargs["json"]["max_completion_tokens"] == 4096
         return httpx.Response(200, request=httpx.Request("POST", url),
                               json={"choices": [{"finish_reason": "length", "message": {"content": "incomplete"}}]})
     monkeypatch.setattr(httpx, "post", post)

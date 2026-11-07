@@ -63,6 +63,7 @@ class Store:
         if options.get("timeField")!="timestamp" or options.get("metaField")!="twin_meta" or options.get("granularity")!="seconds":
             raise RuntimeError("plc_telemetry_ts has incompatible time series options")
         self.db.rea_evidence_graph.create_index("node_id",unique=True)
+        self.db.rea_evidence_graph.create_index("parent_node_id")
         self.db.agent_skill_memory.create_index("pattern_id",unique=True)
         self.db.airgapped_verification_bus.create_index("job_id",unique=True)
 

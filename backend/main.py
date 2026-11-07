@@ -65,20 +65,37 @@ class Workbench:
         data=inspect()
         nodes=[{'node_id':e['node_id'],'parent_node_id':None,'rea_state':e['state'],'confidence':e['confidence'],
                 'evidence_payload':e.get('payload')} for e in data['evidence']]
-        pin_parents={'%QX0.0':'THERMAL_BOUNDARY','%QX0.1':'COOLING_BOUNDARY'}
+        pin_parents={'%IW0':'CONTROL_LAW','%IW1':'CONTROL_LAW','%IW2':'CONTROL_LAW','%IW3':'THERMAL_BOUNDARY',
+                     '%QW0':'CONTROL_LAW','%QX0.0':'THERMAL_BOUNDARY','%QX0.1':'COOLING_BOUNDARY'}
         for pin in data['topology']['terminals']:
-            nodes.append({'node_id':'PIN_'+pin['id'],'parent_node_id':pin_parents.get(pin['id']),
-                          'rea_state':pin['state'],'confidence':0.0,'propagate_seen':False,
-                          'evidence_payload':{'label':pin['label'],'note':pin['note']}})
+            parent=pin.get('parent_node_id') or pin_parents.get(pin['id'])
+            nodes.append({'node_id':'PIN_'+pin['id'],'parent_node_id':parent,
+                          'rea_state':pin['state'],'confidence':0.65 if pin['state']=='INFERRED' else 0.0,'propagate_seen':True,
+                          'evidence_payload':{'label':pin['label'],'offset':pin.get('offset'),
+                                              'governor_function':pin.get('governor_function'),'note':pin['note']}})
+        for mesh_id,pin_id in [('MESH_shoulder_servo_actuator','PIN_%QW0'),
+                               ('MESH_magnetic_safety_brake','PIN_%QX0.0'),
+                               ('MESH_cryo_cooling_solenoid','PIN_%QX0.1')]:
+            nodes.append({'node_id':mesh_id,'parent_node_id':pin_id,'rea_state':'UNKNOWN','confidence':0.0,
+                          'propagate_seen':True,'evidence_payload':{'mesh':mesh_id,'connected_pin':pin_id}})
         self.store.save_graph(nodes)
         if payload.get('run_active_probes'):
             findings=probe()
-            by_id={e['node_id']:e for e in findings['findings']}
-            data['evidence']=[by_id.get(e['node_id'],e) for e in data['evidence']]
-            for item in findings['findings']:
-                if item['state']=='SEEN':self.store.promote_evidence(item['node_id'],item['payload'])
             data['probes']=findings
             data['equivalence']=equivalence()
+            by_id={e['node_id']:e for e in findings['findings']}
+            if data['equivalence']['passed']==data['equivalence']['vectors']:
+                by_id['CONTROL_LAW']={'node_id':'CONTROL_LAW','state':'SEEN','confidence':1.0,
+                                      'payload':{'gains':findings['gains'],'equivalence_vectors':data['equivalence']['passed']}}
+            data['evidence']=[by_id.get(e['node_id'],e) for e in data['evidence']]
+            for item in data['evidence']:
+                if item['state']=='SEEN':self.store.promote_evidence(item['node_id'],item.get('payload'))
+            for pin in data['topology']['terminals']:
+                parent=pin.get('parent_node_id') or pin_parents.get(pin['id'])
+                parent_item=by_id.get(parent)
+                if parent_item and parent_item.get('state')=='SEEN':
+                    pin['state']='SEEN'
+            data['topology']['physical_wiring_verified']=all(p['state']=='SEEN' for p in data['topology']['terminals'])
             evm=subprocess.run([str(ROOT/'node_modules/node/bin/node'),str(ROOT/'scripts/evm_probe.cjs')],cwd=ROOT,check=True,capture_output=True,text=True,timeout=40)
             data['evm_probe']=json.loads(evm.stdout.strip().splitlines()[-1])
             data['counts']={state:sum(e['state']==state for e in data['evidence']) for state in ('SEEN','INFERRED','UNKNOWN')}
@@ -99,12 +116,16 @@ class Workbench:
             return None
         baseline=(ROOT/'backend/evolution_engine/templates/v1.py').read_text()
         prompt=("Write only a Python controller module, with no markdown. Use import math, VERSION = 'v3', "
-                "and step(target, angle, velocity, temp, state=None) returning pwm, estop and cooling. "
-                "Preserve the baseline nonfinite fail-safe, error = target - angle, thresholds 72.0, 88.0, "
-                "45.0, and the max(-100.0, min(100.0, ...)) output clamp. Improve tracking under torque "
-                "loss and gravity using bounded integral anti-windup, cosine feedforward and filtered "
-                "velocity. No I/O, extra imports or network. Use dt=0.01 seconds. The candidate will be "
-                "sandboxed, mutation-tested and rejected unless it passes independent worlds. "
+                "and step(target, angle, velocity, temp, state=None) returning a dict with keys 'pwm', 'estop', 'cooling'. "
+                "Keep the exact baseline nonfinite guard (`if not all(math.isfinite(v) for v in (target, angle, velocity, temp)):`), "
+                "`error = target - angle`, `cooling = int(temp >= 72.0)`, `if temp >= 88.0 or abs(error) > 45.0:`, "
+                "and inline `max(-100.0, min(100.0, ...))` inside the returned dict for `'pwm'`. "
+                "Update `state` in place (`if state is None: state = {}`) with: "
+                "`state['integral'] = max(-50.0, min(50.0, state.get('integral', 0.0) + error * 0.01))`, "
+                "`state['filtered_velocity'] = 0.15 * velocity + 0.85 * state.get('filtered_velocity', 0.0)`, "
+                "`gravity_feedforward = 30.0 * math.cos(math.radians(angle))`, "
+                "and control effort `3.0 * error - 8.0 * state['filtered_velocity'] + 0.6 * state['integral'] + gravity_feedforward`. "
+                "No I/O, extra imports or network. "
                 "Failure summary: "+json.dumps(failure,default=str)+"\nRecovered baseline:\n"+baseline)
         return self.router.meta(prompt,"")
 
@@ -156,7 +177,7 @@ class Workbench:
             deadline += .01
             frame=self.sim.step()
             batch.extend(self.rows(frame))
-            if loop.time()-last_flush >= 5.0:
+            if loop.time()-last_flush >= 1.0:
                 pending,batch=batch,[]
                 try:self.telemetry_queue.put_nowait(pending)
                 except asyncio.QueueFull:

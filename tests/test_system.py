@@ -12,6 +12,8 @@ def test_rea_evidence_and_boundary_probes():
     assert result['rea']['instruction_count'] > 0
     assert all(result['counts'][s] > 0 for s in ('SEEN','INFERRED','UNKNOWN'))
     assert len(result['topology']['terminals'])==7
+    assert {pin['state'] for pin in result['topology']['terminals']}=={'INFERRED','UNKNOWN'}
+    assert all(pin.get('offset') and pin.get('governor_function') for pin in result['topology']['terminals'])
     findings=probe()
     assert len(findings['findings'])==3
     assert all(item['state']=='SEEN' for item in findings['findings'])

@@ -148,6 +148,7 @@ class EvolutionEngine:
         if self.synthesizer is not None:
             summary={"training":training2,
                      "failure_summary":"The aggressive candidate failed one or more safety or stability checks under torque loss and sensor lag.",
+                     "memory_recall":recall,
                      "invariants":dict(INVARIANTS),
                      "required_api":"Python step(target, angle, velocity, temp, state=None) returns pwm, estop, cooling; VERSION = v3"}
             try:

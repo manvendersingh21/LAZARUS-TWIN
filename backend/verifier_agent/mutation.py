@@ -28,13 +28,17 @@ class Mutator(ast.NodeTransformer):
         if self.mutation == "direction" and not self.changed and any(isinstance(t,ast.Name) and t.id=="error" for t in node.targets):
             self.changed=True
             node.value=ast.BinOp(left=ast.Name(id="angle",ctx=ast.Load()),op=ast.Sub(),right=ast.Name(id="target",ctx=ast.Load()))
+        elif self.mutation == "saturation" and not self.changed and any(isinstance(t,ast.Name) and t.id=="pwm" for t in node.targets):
+            if isinstance(node.value,ast.Call) and isinstance(node.value.func,ast.Name) and node.value.func.id in ("max","min"):
+                node.value=ast.parse("3.0 * error - 0.8 * velocity",mode="eval").body
+                self.changed=True
         return self.generic_visit(node)
     def visit_Dict(self, node):
         self.generic_visit(node)
         if self.mutation == "saturation" and not self.changed:
             for i, key in enumerate(node.keys):
                 value=node.values[i]
-                if isinstance(key,ast.Constant) and key.value=="pwm" and isinstance(value,ast.Call) and isinstance(value.func,ast.Name) and value.func.id=="max":
+                if isinstance(key,ast.Constant) and key.value=="pwm" and isinstance(value,ast.Call) and isinstance(value.func,ast.Name) and value.func.id in ("max","min"):
                     node.values[i]=ast.parse("3.0 * error - 0.8 * velocity",mode="eval").body
                     self.changed=True
         return node
