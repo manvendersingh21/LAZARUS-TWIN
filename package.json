@@ -1,0 +1,1 @@
+{"name":"lazarus-twin-external-tools","private":true,"description":"External REA binary archaeology tool; no REA source is vendored.","dependencies":{"@foundry-rs/anvil":"^1.7.1","ethers":"^6.15.0","node":"^22.23.4","rea-agents":"6.8.0","solc":"^0.8.38"}}

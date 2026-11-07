@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.venv/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+build/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+.vault/
+.data/
