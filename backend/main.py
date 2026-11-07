@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timezone
 import logging
 import os
+import shutil
 import subprocess
 import threading
 import time
@@ -28,10 +29,13 @@ logger=logging.getLogger('lazarus')
 
 class InspectionRequest(BaseModel):
     run_active_probes: bool=False
+    judge_mode: bool=False
+    fast_mode: bool=False
 class SabotageRequest(BaseModel):
     enabled: bool=True
     thermal_spike: bool=False
     auto_evolve: bool=False
+    reset_skill: bool=False
 
 class Workbench:
     def __init__(self):
@@ -43,6 +47,16 @@ class Workbench:
         self.binary_sha=build()['sha256']
         self.latest_inspection=None
         self.latest_evolution=None
+        self.action_stages={'inspect':'IDLE','evolve':'IDLE','verify':'IDLE'}
+        self._cached_probe_bundle=None
+        prewarm_path=ROOT/'build/prewarmed_probe.json'
+        if prewarm_path.exists():
+            try:
+                loaded=json.loads(prewarm_path.read_text())
+                if loaded.get('binary_sha256')==self.binary_sha:
+                    self._cached_probe_bundle=loaded
+            except Exception:
+                self._cached_probe_bundle=None
         self.vector_index_status=None
         try:
             self.vector_index_status=self.store.create_vector_index()
@@ -62,82 +76,138 @@ class Workbench:
         self.orchestrator=None
 
     def inspect(self,payload):
-        data=inspect()
-        nodes=[{'node_id':e['node_id'],'parent_node_id':None,'rea_state':e['state'],'confidence':e['confidence'],
-                'evidence_payload':e.get('payload')} for e in data['evidence']]
-        pin_parents={'%IW0':'CONTROL_LAW','%IW1':'CONTROL_LAW','%IW2':'CONTROL_LAW','%IW3':'THERMAL_BOUNDARY',
-                     '%QW0':'CONTROL_LAW','%QX0.0':'THERMAL_BOUNDARY','%QX0.1':'COOLING_BOUNDARY'}
-        for pin in data['topology']['terminals']:
-            parent=pin.get('parent_node_id') or pin_parents.get(pin['id'])
-            nodes.append({'node_id':'PIN_'+pin['id'],'parent_node_id':parent,
-                          'rea_state':pin['state'],'confidence':0.65 if pin['state']=='INFERRED' else 0.0,'propagate_seen':True,
-                          'evidence_payload':{'label':pin['label'],'offset':pin.get('offset'),
-                                              'governor_function':pin.get('governor_function'),'note':pin['note']}})
-        for mesh_id,pin_id in [('MESH_shoulder_servo_actuator','PIN_%QW0'),
-                               ('MESH_magnetic_safety_brake','PIN_%QX0.0'),
-                               ('MESH_cryo_cooling_solenoid','PIN_%QX0.1')]:
-            nodes.append({'node_id':mesh_id,'parent_node_id':pin_id,'rea_state':'UNKNOWN','confidence':0.0,
-                          'propagate_seen':True,'evidence_payload':{'mesh':mesh_id,'connected_pin':pin_id}})
-        self.store.save_graph(nodes)
-        if payload.get('run_active_probes'):
-            findings=probe()
-            data['probes']=findings
-            data['equivalence']=equivalence()
-            by_id={e['node_id']:e for e in findings['findings']}
-            if data['equivalence']['passed']==data['equivalence']['vectors']:
-                by_id['CONTROL_LAW']={'node_id':'CONTROL_LAW','state':'SEEN','confidence':1.0,
-                                      'payload':{'gains':findings['gains'],'equivalence_vectors':data['equivalence']['passed']}}
-            data['evidence']=[by_id.get(e['node_id'],e) for e in data['evidence']]
-            for item in data['evidence']:
-                if item['state']=='SEEN':self.store.promote_evidence(item['node_id'],item.get('payload'))
+        judge_mode=bool(payload.get('judge_mode') or payload.get('fast_mode'))
+        self.action_stages['inspect']='REA_OBJDUMP'
+        try:
+            data=inspect(use_cache=judge_mode)
+            nodes=[{'node_id':e['node_id'],'parent_node_id':None,'rea_state':e['state'],'confidence':e['confidence'],
+                    'evidence_payload':e.get('payload')} for e in data['evidence']]
+            pin_parents={'%IW0':'CONTROL_LAW','%IW1':'CONTROL_LAW','%IW2':'CONTROL_LAW','%IW3':'THERMAL_BOUNDARY',
+                         '%QW0':'CONTROL_LAW','%QX0.0':'THERMAL_BOUNDARY','%QX0.1':'COOLING_BOUNDARY'}
             for pin in data['topology']['terminals']:
                 parent=pin.get('parent_node_id') or pin_parents.get(pin['id'])
-                parent_item=by_id.get(parent)
-                if parent_item and parent_item.get('state')=='SEEN':
-                    pin['state']='SEEN'
-            data['topology']['physical_wiring_verified']=all(p['state']=='SEEN' for p in data['topology']['terminals'])
-            evm=subprocess.run([str(ROOT/'node_modules/node/bin/node'),str(ROOT/'scripts/evm_probe.cjs')],cwd=ROOT,check=True,capture_output=True,text=True,timeout=40)
-            data['evm_probe']=json.loads(evm.stdout.strip().splitlines()[-1])
-            data['counts']={state:sum(e['state']==state for e in data['evidence']) for state in ('SEEN','INFERRED','UNKNOWN')}
-            summary={key:data[key] for key in ('counts','evidence','probes','equivalence','evm','evm_probe')}
-            summary['raw_disassembly']=json.loads((ROOT/'build/rea_evidence.json').read_text())['raw_result']['stdout']
-            summary['evm_opcode_trace']=json.loads((ROOT/'build/evm_trace.json').read_text())
-            summary['evm_bytecode']=(ROOT/'contracts/legacy_governor.hex').read_text().strip()
-            if self.latest_evolution:
-                history=subprocess.run(['git','-C',self.latest_evolution['repository'],'log','--format=%H %s'],capture_output=True,text=True,check=True,timeout=10)
-                summary['skill_git_history']=history.stdout
-            data['sponsor_analysis']=self.router.assess_evidence(summary)
-        self.latest_inspection=data
-        return data
+                nodes.append({'node_id':'PIN_'+pin['id'],'parent_node_id':parent,
+                              'rea_state':pin['state'],'confidence':0.65 if pin['state']=='INFERRED' else 0.0,'propagate_seen':False,
+                              'evidence_payload':{'label':pin['label'],'offset':pin.get('offset'),
+                                                  'governor_function':pin.get('governor_function'),'note':pin['note']}})
+            for mesh_id,pin_id in [('MESH_shoulder_servo_actuator','PIN_%QW0'),
+                                   ('MESH_magnetic_safety_brake','PIN_%QX0.0'),
+                                   ('MESH_cryo_cooling_solenoid','PIN_%QX0.1')]:
+                nodes.append({'node_id':mesh_id,'parent_node_id':pin_id,'rea_state':'UNKNOWN','confidence':0.0,
+                              'propagate_seen':False,'evidence_payload':{'mesh':mesh_id,'connected_pin':pin_id}})
+            self.store.save_graph(nodes)
+            if payload.get('run_active_probes'):
+                self.action_stages['inspect']='FFI_SWEEP'
+                findings=probe()
+                data['probes']=findings
+                cached=self._cached_probe_bundle
+                if judge_mode and cached is None:
+                    prewarm_path=ROOT/'build/prewarmed_probe.json'
+                    if prewarm_path.exists():
+                        try:
+                            loaded=json.loads(prewarm_path.read_text())
+                            if loaded.get('binary_sha256')==self.binary_sha:
+                                cached=self._cached_probe_bundle=loaded
+                        except Exception:
+                            cached=None
+                if judge_mode and cached and cached.get('binary_sha256')==self.binary_sha:
+                    data['equivalence']=cached['equivalence']
+                    data['evm_probe']=cached['evm_probe']
+                    data['judge_mode_cached']=True
+                else:
+                    self.action_stages['inspect']='DIFF_1000_VEC'
+                    data['equivalence']=equivalence()
+                    self.action_stages['inspect']='ANVIL_EVM'
+                    evm=subprocess.run([str(ROOT/'node_modules/node/bin/node'),str(ROOT/'scripts/evm_probe.cjs')],cwd=ROOT,check=True,capture_output=True,text=True,timeout=40)
+                    data['evm_probe']=json.loads(evm.stdout.strip().splitlines()[-1])
+                    data['judge_mode_cached']=False
+                    bundle={'binary_sha256':self.binary_sha,'equivalence':data['equivalence'],'evm_probe':data['evm_probe']}
+                    self._cached_probe_bundle=bundle
+                    try:
+                        (ROOT/'build').mkdir(parents=True,exist_ok=True)
+                        (ROOT/'build/prewarmed_probe.json').write_text(json.dumps(bundle,indent=2))
+                    except Exception:
+                        pass
+                by_id={e['node_id']:e for e in findings['findings']}
+                if data['equivalence']['passed']==data['equivalence']['vectors']:
+                    by_id['CONTROL_LAW']={'node_id':'CONTROL_LAW','state':'SEEN','confidence':1.0,
+                                          'payload':{'gains':findings['gains'],'equivalence_vectors':data['equivalence']['passed']}}
+                data['evidence']=[by_id.get(e['node_id'],e) for e in data['evidence']]
+                for item in data['evidence']:
+                    if item['state']=='SEEN':self.store.promote_evidence(item['node_id'],item.get('payload'))
+                probed_pins=set(findings.get('probed_pins',[]))
+                for pid in probed_pins:
+                    self.store.promote_evidence('PIN_'+pid,{'probed':True})
+                for pin in data['topology']['terminals']:
+                    if pin['id'] in probed_pins:
+                        pin['state']='SEEN'
+                        pin['confidence']=0.9
+                        pin['signal_probed']=True
+                        pin['note']='Software channel directly swept in FFI boundary/gain probe; physical screw-terminal wiring remains unverified.'
+                    elif pin['id']=='%IW1':
+                        pin['state']='INFERRED'
+                        pin['confidence']=0.65
+                        pin['signal_probed']=False
+                        pin['note']='Held at 0.0° during boundary sweeps; error = target - angle coupling inferred from control law, not independently swept.'
+                data['topology']['physical_wiring_verified']=False
+                data['counts']={state:sum(e['state']==state for e in data['evidence']) for state in ('SEEN','INFERRED','UNKNOWN')}
+                summary={key:data[key] for key in ('counts','evidence','probes','equivalence','evm','evm_probe')}
+                summary['raw_disassembly']=json.loads((ROOT/'build/rea_evidence.json').read_text())['raw_result']['stdout']
+                summary['evm_opcode_trace']=json.loads((ROOT/'build/evm_trace.json').read_text())
+                summary['evm_bytecode']=(ROOT/'contracts/legacy_governor.hex').read_text().strip()
+                if self.latest_evolution:
+                    history=subprocess.run(['git','-C',self.latest_evolution['repository'],'log','--format=%H %s'],capture_output=True,text=True,check=True,timeout=10)
+                    summary['skill_git_history']=history.stdout
+                self.action_stages['inspect']='SPONSOR_ASSESS'
+                data['sponsor_analysis']=self.router.assess_evidence(summary)
+            self.latest_inspection=data
+            return data
+        finally:
+            self.action_stages['inspect']='IDLE'
 
     def synthesize(self, failure):
         """Ask Muse for a candidate; the verifier, never the model, decides promotion."""
         if self.router.offline:
             return None
         baseline=(ROOT/'backend/evolution_engine/templates/v1.py').read_text()
-        prompt=("Write only a Python controller module, with no markdown. Use import math, VERSION = 'v3', "
-                "and step(target, angle, velocity, temp, state=None) returning a dict with keys 'pwm', 'estop', 'cooling'. "
-                "Keep the exact baseline nonfinite guard (`if not all(math.isfinite(v) for v in (target, angle, velocity, temp)):`), "
-                "`error = target - angle`, `cooling = int(temp >= 72.0)`, `if temp >= 88.0 or abs(error) > 45.0:`, "
-                "and inline `max(-100.0, min(100.0, ...))` inside the returned dict for `'pwm'`. "
-                "Update `state` in place (`if state is None: state = {}`) with: "
-                "`state['integral'] = max(-50.0, min(50.0, state.get('integral', 0.0) + error * 0.01))`, "
-                "`state['filtered_velocity'] = 0.15 * velocity + 0.85 * state.get('filtered_velocity', 0.0)`, "
-                "`gravity_feedforward = 30.0 * math.cos(math.radians(angle))`, "
-                "and control effort `3.0 * error - 8.0 * state['filtered_velocity'] + 0.6 * state['integral'] + gravity_feedforward`. "
-                "No I/O, extra imports or network. "
-                "Failure summary: "+json.dumps(failure,default=str)+"\nRecovered baseline:\n"+baseline)
+        invariants=failure.get('invariants') or {}
+        prompt=(
+            "Write only a Python controller module, with no markdown fences or extra commentary. "
+            "Required module contract: `import math`, `VERSION = 'v3'`, and "
+            "`def step(target, angle, velocity, temp, state=None):` returning a dict with keys `'pwm'`, `'estop'`, `'cooling'`. "
+            "No I/O, extra imports, or network calls. "
+            "Safety invariants required by the black-box verifier: "
+            "(1) non-finite inputs (`target`, `angle`, `velocity`, `temp`) must return `{'pwm': 0.0, 'estop': 1, 'cooling': 1}`; "
+            f"(2) cooling relay `cooling = int(temp >= {invariants.get('cooling_c', 72.0)})`; "
+            f"(3) emergency stop interlock when `temp >= {invariants.get('thermal_cutoff_c', 88.0)}` or `abs(target - angle) > {invariants.get('runaway_deg', 45.0)}` returning `pwm: 0.0, estop: 1`; "
+            f"(4) PWM output clamped to `[{invariants.get('pwm_min', -100.0)}, {invariants.get('pwm_max', 100.0)}]` using `max(-100.0, min(100.0, ...))`; "
+            "(5) positive tracking error directionality (`error = target - angle`). "
+            "Control design goal: the recovered PD baseline sags under reduced actuator efficiency (-58% torque) and gravity load, "
+            "while aggressive high-gain PD (`v2`) oscillates and overshoots (>4.5 deg) under high inertia and ~0.45s sensor lag. "
+            "Design a state-aware compensator (using the mutable `state` dict across 100Hz steps for bounded integral action, "
+            "velocity filtering, and/or trigonometric gravity compensation) that achieves <2.2 deg steady-state error and <4.5 deg peak overshoot "
+            "across perturbed gravity, inertia, friction, thermal, and sensor-lag regimes.\n"
+            "Failure & recall context: "+json.dumps(failure,default=str)+"\nRecovered baseline:\n"+baseline
+        )
         return self.router.meta(prompt,"")
 
     def evolve(self,payload):
-        result=self.engine.run()
-        self.latest_evolution=result
-        return result
+        self.action_stages['evolve']='GIT_SAGA_VERIFY'
+        try:
+            result=self.engine.run()
+            self.latest_evolution=result
+            return result
+        finally:
+            self.action_stages['evolve']='IDLE'
 
     def verify(self,payload):
         # Only the named local handle is resolved here; source never enters the verifier process.
         if payload.get('entrypoint','active') != 'active':raise ValueError('unknown entrypoint')
-        return audit()
+        self.action_stages['verify']='MUTATION_AUDIT'
+        try:
+            return audit()
+        finally:
+            self.action_stages['verify']='IDLE'
 
     def event(self,doc):
         self.events.append({'type':'verification_job','job_id':doc.get('job_id'),'git_commit_hash':doc.get('git_commit_hash'),'status':doc.get('status')})
@@ -153,6 +223,7 @@ class Workbench:
     def frame(self):
         frame=self.sim.snapshot()
         frame['sabotage_active']=frame['left_legacy']['sabotage_active']
+        frame['action_stages']=dict(self.action_stages)
         if self.events:frame['event']=self.events[-1]
         return frame
 
@@ -222,7 +293,7 @@ async def lifespan(app):
         workbench.store.close()
 
 app=FastAPI(title='LAZARUS-TWIN',lifespan=lifespan)
-app.add_middleware(CORSMiddleware,allow_origins=['http://localhost:5173','http://127.0.0.1:5173'],allow_methods=['GET','POST'],allow_headers=['*'])
+app.add_middleware(CORSMiddleware,allow_origins=['http://localhost:5173','http://127.0.0.1:5173'],allow_origin_regex=r'https?://.*\.trycloudflare\.com',allow_methods=['GET','POST'],allow_headers=['*'])
 
 def wb():return app.state.workbench
 
@@ -233,6 +304,7 @@ def health():
     result=subprocess.run(['git','-C',repo,'rev-parse','HEAD'],text=True,capture_output=True)
     return {'status':'ok','active_skill_version':state.sim.snapshot()['active_skill_version'],
             'git_commit':result.stdout.strip() if result.returncode==0 else None,
+            'action_stages':dict(state.action_stages),
             'sponsors':{**state.router.connections(),'mongodb':state.store.mode,'fetch_ai':'local uAgents'},
             'telemetry_error':state.telemetry_error,'telemetry_dropped_points':state.telemetry_dropped_points,'vector_index':state.vector_index_status}
 
@@ -243,6 +315,10 @@ async def archaeology(request:InspectionRequest):
 @app.post('/api/sabotage')
 async def sabotage(request:SabotageRequest):
     state=wb()
+    if request.reset_skill:
+        active=ROOT/'.skills/controllers/active_skill.py'
+        shutil.copyfile(ROOT/'backend/evolution_engine/templates/v1.py',active)
+        state.sim.adopt(active)
     if not request.enabled and not request.thermal_spike:
         state.sim.reset(); state.run_id=str(uuid.uuid4())
     else: state.sim.set_fault(request.enabled,request.thermal_spike)

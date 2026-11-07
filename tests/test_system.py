@@ -19,6 +19,18 @@ def test_rea_evidence_and_boundary_probes():
     assert all(item['state']=='SEEN' for item in findings['findings'])
     assert findings['gains']['proportional_sample']==3.0
     assert findings['gains']['velocity_sample']==-0.8
+    assert result['plc_targets']['openplc_runtime']['evidence_id'].startswith('ev_')
+    assert result['plc_targets']['openplc_runtime']['instruction_count'] > 4000
+    assert 'image_tables_bind_located_vars' in result['plc_targets']['openplc_runtime']['functions_discovered']
+    assert 'image_tables_zero_outputs' in result['plc_targets']['openplc_runtime']['functions_discovered']
+    assert result['plc_targets']['fulmatic_cortex_m4']['evidence_id'].startswith('ev_')
+    assert '.text.MotionControl' in result['plc_targets']['fulmatic_cortex_m4']['text_sections']
+    assert '.text.SetVelocity' in result['plc_targets']['fulmatic_cortex_m4']['text_sections']
+    assert result['plc_targets']['fulmatic_cortex_m4']['thumb2_instruction_count'] == 1102
+    assert findings['probes']['openplc_ffi_probe']['passed'] is True
+    assert findings['probes']['openplc_ffi_probe']['located_globals_matched'] == 7
+    assert findings['probes']['openplc_ffi_probe']['zero_outputs_verified'] is True
+    assert findings['probes']['fulmatic_arm_probe']['passed'] is True
 
 
 def test_recovered_baseline_matches_one_thousand_vectors():

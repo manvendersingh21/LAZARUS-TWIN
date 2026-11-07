@@ -36,9 +36,12 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
     let state=2026;const rand=()=>{state=(state*1664525+1013904223)>>>0;return state;};
     const samples=[[0,0,0,71999],[0,0,0,72000],[0,0,0,87999],[0,0,0,88000],[45000,0,0,20000],[45001,0,0,20000]];
     for(let i=0;i<256;i++) samples.push([(rand()%180001)-90000,(rand()%180001)-90000,(rand()%500001)-250000,rand()%130001]);
-    for(const args of samples){
-      const [x,y]=await Promise.all([a.step(...args),b.step(...args)]);
-      if(x[0]!==y[0]||x[1]!==y[1]||x[2]!==y[2]) throw Error(`EVM mismatch for ${args}`);
+    for(let i=0;i<samples.length;i+=32){
+      const batch=samples.slice(i,i+32);
+      await Promise.all(batch.map(async(args)=>{
+        const [x,y]=await Promise.all([a.step(...args),b.step(...args)]);
+        if(x[0]!==y[0]||x[1]!==y[1]||x[2]!==y[2]) throw Error(`EVM mismatch for ${args}`);
+      }));
     }
     const calldata=a.interface.encodeFunctionData('step',[0,0,0,88000]);
     const trace=await provider.send('debug_traceCall',[{to:legacyAddress,data:calldata},'latest',{disableMemory:true,disableStack:true,disableStorage:true}]);

@@ -9,6 +9,19 @@ from pathlib import Path
 from backend.rea_archaeologist.build import ROOT
 from .verifier import verify_isolated
 
+def _unwrap_clamp(node):
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in ("max", "min") and len(node.args) == 2:
+        for arg in node.args:
+            if isinstance(arg, ast.Call) and isinstance(arg.func, ast.Name) and arg.func.id in ("max", "min") and len(arg.args) == 2:
+                for inner in arg.args:
+                    if not (isinstance(inner, ast.Constant) or (isinstance(inner, ast.UnaryOp) and isinstance(inner.operand, ast.Constant))):
+                        return inner
+                return arg.args[-1]
+        for arg in node.args:
+            if not (isinstance(arg, ast.Constant) or (isinstance(arg, ast.UnaryOp) and isinstance(arg.operand, ast.Constant))):
+                return arg
+    return None
+
 class Mutator(ast.NodeTransformer):
     def __init__(self, mutation): self.mutation, self.changed = mutation, False
     def visit_If(self, node):
@@ -20,7 +33,7 @@ class Mutator(ast.NodeTransformer):
         replacements = {"thermal":(88.0,1000.0),"cooling":(72.0,1000.0),"runaway":(45.0,450.0)}
         if self.mutation in replacements and not self.changed:
             old,new = replacements[self.mutation]
-            if type(node.value) is float and node.value == old:
+            if isinstance(node.value, (int, float)) and not isinstance(node.value, bool) and float(node.value) == old:
                 self.changed=True
                 return ast.copy_location(ast.Constant(new), node)
         return node
@@ -29,18 +42,21 @@ class Mutator(ast.NodeTransformer):
             self.changed=True
             node.value=ast.BinOp(left=ast.Name(id="angle",ctx=ast.Load()),op=ast.Sub(),right=ast.Name(id="target",ctx=ast.Load()))
         elif self.mutation == "saturation" and not self.changed and any(isinstance(t,ast.Name) and t.id=="pwm" for t in node.targets):
-            if isinstance(node.value,ast.Call) and isinstance(node.value.func,ast.Name) and node.value.func.id in ("max","min"):
-                node.value=ast.parse("3.0 * error - 0.8 * velocity",mode="eval").body
-                self.changed=True
+            unwrapped = _unwrap_clamp(node.value)
+            if unwrapped is not None:
+                node.value = unwrapped
+                self.changed = True
         return self.generic_visit(node)
     def visit_Dict(self, node):
         self.generic_visit(node)
         if self.mutation == "saturation" and not self.changed:
             for i, key in enumerate(node.keys):
                 value=node.values[i]
-                if isinstance(key,ast.Constant) and key.value=="pwm" and isinstance(value,ast.Call) and isinstance(value.func,ast.Name) and value.func.id in ("max","min"):
-                    node.values[i]=ast.parse("3.0 * error - 0.8 * velocity",mode="eval").body
-                    self.changed=True
+                if isinstance(key,ast.Constant) and key.value=="pwm":
+                    unwrapped = _unwrap_clamp(value)
+                    if unwrapped is not None:
+                        node.values[i] = unwrapped
+                        self.changed = True
         return node
 
 def audit(path=None):

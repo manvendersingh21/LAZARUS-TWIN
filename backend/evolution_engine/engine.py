@@ -114,7 +114,7 @@ class EvolutionEngine:
         baseline=SandboxedController(skill, version="v1", deadline=time.monotonic()+45)
         try:v1_train=_training(baseline.step)
         finally:baseline.close()
-        ledger=[{"version":"v1","status":"BASELINE","commit":v1,"training":v1_train}]
+        ledger=[{"version":"v1","status":"BASELINE","origin":"recovered_baseline","origin_label":"RECOVERED_BASELINE","commit":v1,"training":v1_train}]
 
         shutil.copyfile(TEMPLATES/"v2.py",skill)
         v2=self._commit(repo,"v2 aggressive training candidate")
@@ -132,8 +132,18 @@ class EvolutionEngine:
             raise RuntimeError("v2 unexpectedly passed; refusing to fabricate a rollback")
         self.git(repo,"revert","--no-edit",v2)
         revert=self.git(repo,"rev-parse","HEAD")
-        v2_record={"version":"v2","status":"REVERTED","commit":v2,"revert_commit":revert,"training":training2,
-                   "worlds":worlds2,"world_verifier_isolation":world_result2["isolation"],"audit":audit2,"reason":"held-out benchmark or verifier rejected candidate",
+        failed_worlds=[
+            f"{w.get('name') or w.get('world','world')} (err {w.get('steady_state_error_deg',0)}°, overshoot {w.get('peak_overshoot_deg',0)}°"
+            + (", estop)" if w.get("estop") else ")")
+            for w in worlds2 if not w.get("passed")
+        ]
+        t_status="PASS" if training2.get("passed") else "FAIL"
+        v2_reason=(
+            f"Training {t_status} (err {training2.get('steady_state_error_deg',0)}°, overshoot {training2.get('peak_overshoot_deg',0)}°); "
+            + (f"failed held-out worlds: {', '.join(failed_worlds)}" if failed_worlds else "rejected by verifier")
+        )
+        v2_record={"version":"v2","status":"REVERTED","origin":"overfit_candidate","origin_label":"OVERFIT_TEMPLATE","commit":v2,"revert_commit":revert,"training":training2,
+                   "worlds":worlds2,"world_verifier_isolation":world_result2["isolation"],"audit":audit2,"reason":v2_reason,
                    "timestamp":datetime.now(timezone.utc)}
         self._verdict(job2,v2_record,previous_active,"REJECTED_TRIGGER_GIT_REVERT")
         # PyMongo mutates inserted dicts to add ObjectIds; keep JSON responses clean.
@@ -160,6 +170,7 @@ class EvolutionEngine:
         fallback=(TEMPLATES/"v3.py").read_text()
         candidates=[("synthesized",proposed),("local_template",fallback)] if proposed is not None else [("local_template",fallback)]
         for origin, source in candidates:
+            origin_label="MUSE_SYNTHESIZED" if origin=="synthesized" else "LOCAL_TEMPLATE"
             skill.write_text(source)
             v3=self._commit(repo,"v3 synthesized candidate" if origin=="synthesized" else "v3 adaptive anti-windup controller")
             subscriber.register(repo,v3)
@@ -183,7 +194,7 @@ class EvolutionEngine:
             self.git(repo,"revert","--no-edit",v3)
             fail_commit=self.git(repo,"rev-parse","HEAD")
             record={"version":"v3-proposal" if origin=="synthesized" else "v3","status":"REVERTED",
-                    "origin":origin,"commit":v3,"revert_commit":fail_commit,"worlds":worlds3,"audit":audit3,
+                    "origin":origin,"origin_label":origin_label,"commit":v3,"revert_commit":fail_commit,"worlds":worlds3,"audit":audit3,
                     "reason":"candidate failed isolated verification", "verification_error":verification_error,
                     "timestamp":datetime.now(timezone.utc)}
             self._verdict(job3,record,previous_active,"REJECTED_TRIGGER_GIT_REVERT")
@@ -192,8 +203,10 @@ class EvolutionEngine:
             ledger.append(record)
             synthesis.update(status="rejected")
         else:raise RuntimeError("No candidate passed verification")
+        origin_label="MUSE_SYNTHESIZED" if origin=="synthesized" else "LOCAL_TEMPLATE"
         if origin=="synthesized":synthesis.update(status="adopted")
-        v3_record={"version":"v3","status":"ADOPTED","origin":origin,"commit":v3,"worlds":worlds3,"world_verifier_isolation":world_result3["isolation"],"audit":audit3,
+        else:synthesis.update(active_origin=origin,active_origin_label=origin_label)
+        v3_record={"version":"v3","status":"ADOPTED","origin":origin,"origin_label":origin_label,"commit":v3,"worlds":worlds3,"world_verifier_isolation":world_result3["isolation"],"audit":audit3,
                    "timestamp":datetime.now(timezone.utc)}
         # Publish the approved code atomically; restore the previous file if the database transaction fails.
         self.active_path.parent.mkdir(parents=True,exist_ok=True)
@@ -230,5 +243,6 @@ class EvolutionEngine:
         v3_record.pop("_id",None);v3_record["timestamp"]=v3_record["timestamp"].isoformat()
         ledger.append(v3_record)
         return {"iterations":ledger,"active_skill_version":"v3","active_commit":v3,"revert_commit":revert,
+                "active_origin":origin,"active_origin_label":origin_label,
                 "repository":str(repo),"memory_recall":recall,"synthesis":synthesis,
                 "note":"Git skill repository and MongoDB are coordinated as a saga, not one atomic transaction."}

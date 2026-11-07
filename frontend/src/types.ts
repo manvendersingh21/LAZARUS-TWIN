@@ -1,14 +1,18 @@
 export type EvidenceState = 'SEEN' | 'INFERRED' | 'UNKNOWN'
+
 export interface Terminal {
   id: string
   label: string
   slot: number
   state: EvidenceState
+  confidence?: number
+  provenance?: string
   offset?: string | null
   governor_function?: string | null
   parent_node_id?: string | null
   note?: string
 }
+
 export interface Evidence {
   node_id: string
   state: EvidenceState
@@ -16,31 +20,149 @@ export interface Evidence {
   payload?: unknown
   source?: string
 }
+
 export interface EvmProbe {
   network?: string
   tested?: number
   passed?: number
   trace_steps?: number
 }
+
+export interface OpenPlcRuntimeTarget {
+  evidence_id?: string
+  sha256?: string
+  arch?: string
+  instruction_count?: number
+  functions_discovered?: string[]
+  sample_instructions?: string[]
+}
+
+export interface FulmaticCortexM4Target {
+  evidence_id?: string
+  core_evidence_id?: string
+  sha256?: string
+  core_sha256?: string
+  arch?: string
+  symbol_count?: number
+  thumb2_instruction_count?: number
+  text_sections?: string[]
+  hardware_abi_symbols?: string[]
+  sample_instructions?: string[]
+}
+
+export interface FulmaticArmProbe {
+  passed?: boolean
+  cpu_model?: string
+  function_tested?: string
+  recovered_min_velocity?: number
+  recovered_max_velocity?: number
+  test_vectors?: Array<{ req: number; out: number }>
+}
+
+export interface PlcTargets {
+  openplc_runtime?: OpenPlcRuntimeTarget
+  fulmatic_cortex_m4?: FulmaticCortexM4Target
+}
+
+export interface OpenPlcFfiProbe {
+  passed?: boolean
+  library_sha256?: string
+  capacities?: Record<string, number>
+  located_globals_matched?: number
+  located_globals_total?: number
+  zero_outputs_verified?: boolean
+  before_zero?: Record<string, number>
+  after_zero?: Record<string, number>
+  input_preserved?: number
+}
+
+export interface BlindRecovery {
+  recovered_parameters?: {
+    cooling_c?: number
+    thermal_cutoff_c?: number
+    runaway_deg?: number
+    runaway_negative_deg?: number
+    kp?: number
+    kd?: number
+    saturation_pwm?: number
+  }
+  brackets?: Record<string, [number, number] | null>
+  residuals_vs_sealed_ground_truth?: {
+    cooling_c_abs_err?: number | null
+    thermal_cutoff_c_abs_err?: number | null
+    runaway_deg_abs_err?: number | null
+    kp_abs_err?: number | null
+    kd_abs_err?: number | null
+  }
+  max_boundary_residual?: number | null
+  blind_vs_legacy_vectors?: number
+  blind_vs_legacy_passed?: number
+  blind_vs_legacy_mismatches?: Array<{
+    index?: number
+    input?: string[]
+    legacy?: unknown
+    blind_recovered?: unknown
+  }>
+  scope?: string
+}
+
+export interface ProbesData {
+  findings?: Evidence[]
+  gains?: {
+    proportional_sample?: number
+    velocity_sample?: number
+    scope?: string
+  }
+  waveform_count?: number
+  blind_recovery?: BlindRecovery
+  openplc_ffi_probe?: OpenPlcFfiProbe
+  fulmatic_arm_probe?: FulmaticArmProbe
+}
+
 export interface Inspection {
+  artifact?: {
+    binary?: string
+    library?: string
+    sha256?: string
+    library_sha256?: string
+    plant_provenance?: string
+  }
   counts: Record<EvidenceState, number>
   evidence: Evidence[]
   topology: {
     id?: string
     terminals: Terminal[]
     slots: { slot: number; name: string }[]
+    provenance?: string
     physical_wiring_verified?: boolean
   }
-  equivalence?: { passed: number; vectors: number; pass_rate: number }
+  plc_targets?: PlcTargets
+  openplc_ffi_probe?: OpenPlcFfiProbe
+  fulmatic_arm_probe?: FulmaticArmProbe
+  equivalence?: {
+    passed: number
+    vectors: number
+    pass_rate: number
+    scope?: string
+    blind_recovery?: BlindRecovery
+  }
   evm_probe?: EvmProbe
-  rea?: { instruction_count?: number }
-  probes?: unknown
+  rea?: {
+    instruction_count?: number
+    evidence_id?: string
+    provider?: string
+    boundary_note?: string
+  }
+  we_built?: string[]
+  probes?: ProbesData
+  fast_mode?: boolean
   sponsor_analysis?: {
     meta_analysis?: { provider?: string; text?: string }
     subq_unknown_branch_decision?: { provider?: string; probability?: number | null; decision?: boolean }
     advisory_only?: boolean
   }
 }
+
 export interface Twin {
   angle?: number
   angle_deg?: number
@@ -58,13 +180,16 @@ export interface Twin {
   cooling?: number | boolean
   tracking_error_deg?: number
   error?: number
+  sabotage_active?: boolean
 }
+
 export interface VerificationEvent {
   type?: string
   job_id?: string
   git_commit_hash?: string
   status?: string
 }
+
 export interface Frame {
   tick?: number
   active_skill_version?: string
@@ -73,6 +198,7 @@ export interface Frame {
   sabotage_active?: boolean
   event?: VerificationEvent
 }
+
 export interface MongoStats {
   mode?: string
   time_series_points?: number
@@ -82,18 +208,22 @@ export interface MongoStats {
   change_events?: number
   offline_reason?: string | null
 }
+
 export interface WorldScore {
-  world?: string
+  world?: string | number
+  name?: string
   passed?: boolean
   steady_state_error_deg?: number
   peak_overshoot_deg?: number
   estop?: number
 }
+
 export interface MutantResult {
   mutation: string
   killed: boolean
   failures?: string[]
 }
+
 export interface MutationAudit {
   candidate_sha256?: string
   baseline?: { passed?: boolean; checks?: number; failures?: string[] }
@@ -103,6 +233,7 @@ export interface MutationAudit {
   isolation?: { filesystem?: string; network?: string }
   signature_hmac_sha256?: string
 }
+
 export interface EvolutionStep {
   version?: string
   skill_version?: string
@@ -119,6 +250,7 @@ export interface EvolutionStep {
   worlds?: WorldScore[]
   audit?: MutationAudit
 }
+
 export interface Evolution {
   iterations?: EvolutionStep[]
   ledger?: EvolutionStep[]
@@ -132,6 +264,10 @@ export interface Evolution {
   synthesis?: { status?: string; provider?: string }
   [key: string]: unknown
 }
+
+export type BusyKey = 'probe' | 'fault' | 'evolve' | 'verify'
+export type BusyMap = Partial<Record<BusyKey, string>>
+
 export const twinValue = (twin: Twin | undefined, ...keys: (keyof Twin)[]): number | undefined => {
   for (const k of keys) {
     const value = twin?.[k]
@@ -140,16 +276,32 @@ export const twinValue = (twin: Twin | undefined, ...keys: (keyof Twin)[]): numb
   }
   return undefined
 }
+
 export const pinSignal = (pin: Terminal, frame: Frame): number => {
   const t = frame.right_evolved
   switch (pin.id) {
-    case '%IW0': return Math.abs(twinValue(t, 'target', 'target_angle') ?? 0) / 90
-    case '%IW1': return Math.abs(twinValue(t, 'angle', 'angle_deg', 'current_angle') ?? 0) / 90
-    case '%IW2': return Math.abs(twinValue(t, 'velocity', 'angular_velocity') ?? 0) / 100
-    case '%IW3': return Math.abs(twinValue(t, 'temperature', 'temp', 'core_temp_c') ?? 0) / 100
-    case '%QW0': return Math.abs(twinValue(t, 'pwm', 'motor_pwm') ?? 0) / 100
-    case '%QX0.0': return twinValue(t, 'estop') ?? 0
-    case '%QX0.1': return twinValue(t, 'cooling') ?? 0
-    default: return 0
+    case '%IW0':
+      return Math.abs(twinValue(t, 'target', 'target_angle') ?? 0) / 90
+    case '%IW1':
+      return Math.abs(twinValue(t, 'angle', 'angle_deg', 'current_angle') ?? 0) / 90
+    case '%IW2':
+      return Math.abs(twinValue(t, 'velocity', 'angular_velocity') ?? 0) / 100
+    case '%IW3':
+      return Math.abs(twinValue(t, 'temperature', 'temp', 'core_temp_c') ?? 0) / 100
+    case '%QW0':
+      return Math.abs(twinValue(t, 'pwm', 'motor_pwm') ?? 0) / 100
+    case '%QX0.0':
+      return twinValue(t, 'estop') ?? 0
+    case '%QX0.1':
+      return twinValue(t, 'cooling') ?? 0
+    default:
+      return 0
   }
+}
+
+export const pinConfidence = (pin: Terminal): number => {
+  if (typeof pin.confidence === 'number') return pin.confidence
+  if (pin.state === 'SEEN') return 0.9
+  if (pin.state === 'INFERRED') return 0.65
+  return 0.0
 }

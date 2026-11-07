@@ -15,9 +15,10 @@ def test_api_and_websocket_with_local_storage(monkeypatch,tmp_path):
         assert response.status_code==200
         result=response.json()
         assert result['counts']['UNKNOWN']==0
-        assert all(pin['state']=='SEEN' for pin in result['topology']['terminals'])
+        assert sum(pin['state']=='SEEN' for pin in result['topology']['terminals'])==6
+        assert any(pin['id']=='%IW1' and pin['state']=='INFERRED' for pin in result['topology']['terminals'])
         assert all(pin.get('offset') and pin.get('governor_function') for pin in result['topology']['terminals'])
-        assert result['topology']['physical_wiring_verified'] is True
+        assert result['topology']['physical_wiring_verified'] is False
         assert result['equivalence']['passed']==1000
         assert result['rea']['evidence_id'].startswith('ev_')
         mongo_stats=client.get('/api/mongodb/stats').json()
