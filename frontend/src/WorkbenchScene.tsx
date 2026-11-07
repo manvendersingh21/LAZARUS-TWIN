@@ -12,8 +12,8 @@ export type CameraSyncState = {
   target: [number, number, number]
 }
 
-export const DEFAULT_CAMERA_POSITION: [number, number, number] = [1.45, 1.78, 5.75]
-export const DEFAULT_CAMERA_TARGET: [number, number, number] = [1.4, 1.42, 0]
+export const DEFAULT_CAMERA_POSITION: [number, number, number] = [1.35, 1.68, 5.25]
+export const DEFAULT_CAMERA_TARGET: [number, number, number] = [1.35, 1.32, 0]
 
 function SynchronizedCameraRig({
   cameraSync,
@@ -107,34 +107,29 @@ export function Viewport3D({
         width: '100%',
         height: '100%',
         position: 'relative',
-        backgroundImage:
-          "linear-gradient(180deg, rgba(11, 17, 32, 0.25) 0%, rgba(11, 17, 32, 0.42) 100%), url('/factory-bg.jpg')",
-        backgroundSize: 'cover',
-        backgroundPosition: 'center 55%',
-        backgroundRepeat: 'no-repeat',
+        background: '#111827',
       }}
     >
       <Canvas
         shadows
-        gl={{ alpha: true, antialias: true }}
         dpr={[1, 1.5]}
-        camera={{ position: initialPos, fov: 38, near: 0.1, far: 100 }}
-        onCreated={({ camera, gl }) => {
-          gl.setClearColor(0x000000, 0)
+        camera={{ position: initialPos, fov: 36, near: 0.1, far: 100 }}
+        onCreated={({ camera }) => {
           camera.lookAt(...initialTarget)
         }}
       >
-        <ambientLight color="#f1f5f9" intensity={1.55} />
-        <hemisphereLight args={['#ffffff', '#1e293b', 1.2]} />
+        <color attach="background" args={['#141c28']} />
+        <ambientLight color="#f1f5f9" intensity={1.6} />
+        <hemisphereLight args={['#ffffff', '#1e293b', 1.25]} />
         <directionalLight
           castShadow
           position={[4.5, 9.5, 7.5]}
-          intensity={2.5}
+          intensity={2.4}
           color="#ffffff"
           shadow-mapSize={[1024, 1024]}
         />
-        <directionalLight position={[-4.5, 6.0, -4.0]} intensity={1.2} color="#38bdf8" />
-        <pointLight position={[1.8, 3.6, 2.0]} intensity={1.8} color="#f8fafc" distance={14} />
+        <directionalLight position={[-4.5, 6.0, -3.0]} intensity={1.15} color="#38bdf8" />
+        <pointLight position={[1.6, 3.2, 2.2]} intensity={1.6} color="#f8fafc" distance={12} />
 
         <Suspense fallback={null}>
           <SingleArmScene side={side} frame={frame} hudRefs={hudRefs} />
@@ -151,10 +146,12 @@ export function Viewport3D({
           makeDefault
           target={initialTarget}
           enablePan={false}
-          minDistance={3.0}
-          maxDistance={12.0}
-          minPolarAngle={Math.PI * 0.15}
-          maxPolarAngle={Math.PI * 0.52}
+          minDistance={3.2}
+          maxDistance={9.5}
+          minPolarAngle={Math.PI * 0.24}
+          maxPolarAngle={Math.PI * 0.49}
+          minAzimuthAngle={-Math.PI * 0.22}
+          maxAzimuthAngle={Math.PI * 0.22}
           onChange={handleControlsChange}
         />
       </Canvas>
