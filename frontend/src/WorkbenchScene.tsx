@@ -12,7 +12,7 @@ export type CameraSyncState = {
   target: [number, number, number]
 }
 
-export const DEFAULT_CAMERA_POSITION: [number, number, number] = [1.35, 1.68, 5.25]
+export const DEFAULT_CAMERA_POSITION: [number, number, number] = [1.35, 1.62, 5.15]
 export const DEFAULT_CAMERA_TARGET: [number, number, number] = [1.35, 1.32, 0]
 
 function SynchronizedCameraRig({
@@ -107,7 +107,7 @@ export function Viewport3D({
         width: '100%',
         height: '100%',
         position: 'relative',
-        background: '#111827',
+        background: '#222a34',
       }}
     >
       <Canvas
@@ -118,18 +118,20 @@ export function Viewport3D({
           camera.lookAt(...initialTarget)
         }}
       >
-        <color attach="background" args={['#141c28']} />
-        <ambientLight color="#f1f5f9" intensity={1.6} />
-        <hemisphereLight args={['#ffffff', '#1e293b', 1.25]} />
+        {/* Warm-cool industrial studio lighting matched to factory-bg.jpg high-bay LEDs */}
+        <color attach="background" args={['#222a34']} />
+        <fog attach="fog" args={['#242c37', 7.8, 17.5]} />
+        <ambientLight color="#dce3ec" intensity={1.45} />
+        <hemisphereLight args={['#f4f6f8', '#2a333e', 1.15]} />
         <directionalLight
           castShadow
-          position={[4.5, 9.5, 7.5]}
-          intensity={2.4}
-          color="#ffffff"
+          position={[3.8, 8.5, 6.5]}
+          intensity={2.1}
+          color="#fffaf0"
           shadow-mapSize={[1024, 1024]}
         />
-        <directionalLight position={[-4.5, 6.0, -3.0]} intensity={1.15} color="#38bdf8" />
-        <pointLight position={[1.6, 3.2, 2.2]} intensity={1.6} color="#f8fafc" distance={12} />
+        <directionalLight position={[-4.2, 5.5, -2.5]} intensity={0.95} color="#90cdf4" />
+        <pointLight position={[1.5, 3.0, 2.0]} intensity={1.25} color="#fefcbf" distance={11} />
 
         <Suspense fallback={null}>
           <SingleArmScene side={side} frame={frame} hudRefs={hudRefs} />
@@ -147,11 +149,11 @@ export function Viewport3D({
           target={initialTarget}
           enablePan={false}
           minDistance={3.2}
-          maxDistance={9.5}
-          minPolarAngle={Math.PI * 0.24}
-          maxPolarAngle={Math.PI * 0.49}
-          minAzimuthAngle={-Math.PI * 0.22}
-          maxAzimuthAngle={Math.PI * 0.22}
+          maxDistance={8.5}
+          minPolarAngle={Math.PI * 0.28}
+          maxPolarAngle={Math.PI * 0.48}
+          minAzimuthAngle={-Math.PI * 0.18}
+          maxAzimuthAngle={Math.PI * 0.18}
           onChange={handleControlsChange}
         />
       </Canvas>
@@ -172,17 +174,17 @@ export function Viewport3D({
         <div
           ref={topTelemetryRef}
           style={{
-            background: 'rgba(15, 23, 42, 0.90)',
+            background: 'rgba(26, 32, 44, 0.86)',
             backdropFilter: 'blur(6px)',
-            color: '#f8fafc',
+            color: '#edf2f7',
             fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)",
             fontSize: '10.5px',
             fontWeight: 700,
             padding: '4px 9px',
             borderRadius: '4px',
-            border: '1px solid #334155',
-            borderLeft: `3.5px solid ${side === 'left' ? '#f97316' : '#06b6d4'}`,
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+            border: '1px solid rgba(113, 128, 150, 0.4)',
+            borderLeft: `3.5px solid ${side === 'left' ? '#c25929' : '#2b7c94'}`,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.32)',
           }}
         >
           TARGET: 30.0° · ACTUAL θ: 30.0° · ERROR Δθ: +0.0° · PWM: 0%
@@ -205,14 +207,16 @@ export function Viewport3D({
         <div
           ref={conveyorStatusRef}
           style={{
-            backgroundColor: '#059669',
-            color: '#ffffff',
+            backgroundColor: 'rgba(39, 103, 73, 0.92)',
+            backdropFilter: 'blur(6px)',
+            color: '#f0fff4',
             fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)",
             fontSize: '10px',
             fontWeight: 800,
             padding: '4px 9px',
             borderRadius: '4px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+            border: '1px solid rgba(72, 187, 120, 0.35)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.32)',
           }}
         >
           ✓ PASSING TO UPPER BELT (θ = 30.0°)
@@ -220,15 +224,15 @@ export function Viewport3D({
         <div
           ref={conveyorYieldRef}
           style={{
-            background: 'rgba(15, 23, 42, 0.90)',
+            background: 'rgba(26, 32, 44, 0.86)',
             backdropFilter: 'blur(6px)',
-            color: '#e2e8f0',
+            color: '#cbd5e1',
             fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)",
             fontSize: '9.5px',
             fontWeight: 700,
             padding: '3px 9px',
             borderRadius: '4px',
-            border: '1px solid #334155',
+            border: '1px solid rgba(113, 128, 150, 0.4)',
           }}
         >
           PICKED (UPPER PASS): 0 · MISSED (LOWER REJECT): 0
@@ -247,7 +251,7 @@ export function Viewport3D({
         <div
           ref={bottomSafetyRef}
           style={{
-            background: 'rgba(15, 23, 42, 0.90)',
+            background: 'rgba(26, 32, 44, 0.86)',
             backdropFilter: 'blur(6px)',
             color: '#cbd5e1',
             fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)",
@@ -255,7 +259,7 @@ export function Viewport3D({
             fontWeight: 700,
             padding: '3px 9px',
             borderRadius: '4px',
-            border: '1px solid #334155',
+            border: '1px solid rgba(113, 128, 150, 0.4)',
           }}
         >
           g ↓ (-Y) · ω: 0.0°/s · TEMP: 30.0°C · COOLING: OFF · E-STOP: OK (RUN)
@@ -294,7 +298,7 @@ export default function WorkbenchScene({
         width: '100%',
         height: '100%',
         position: 'relative',
-        background: '#0b1120',
+        background: '#222a34',
       }}
     >
       <div
@@ -302,7 +306,7 @@ export default function WorkbenchScene({
           position: 'relative',
           width: '100%',
           height: '100%',
-          borderRight: '2px solid #334155',
+          borderRight: '2px solid #3e4752',
           overflow: 'hidden',
         }}
       >

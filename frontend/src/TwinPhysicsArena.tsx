@@ -47,70 +47,81 @@ function FactoryHallEnvironment() {
     texture.needsUpdate = true
   }, [texture])
 
+  // Create a smooth alpha-fade floor canvas texture so the 3D floor dissolves seamlessly into factory-bg.jpg
+  const floorFadeTexture = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 64
+    canvas.height = 256
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      const grad = ctx.createLinearGradient(0, 0, 0, 256)
+      // Back edge (z = -3.6) is completely transparent (0.0) so factory-bg.jpg floor shows through seamlessly;
+      // Foreground under the machine (z = -0.6..+1.5) is softly grounded (0.82)
+      grad.addColorStop(0.0, 'rgba(34, 42, 52, 0.0)')
+      grad.addColorStop(0.32, 'rgba(34, 42, 52, 0.55)')
+      grad.addColorStop(0.65, 'rgba(33, 41, 50, 0.84)')
+      grad.addColorStop(1.0, 'rgba(30, 37, 46, 0.90)')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, 64, 256)
+    }
+    const tex = new THREE.CanvasTexture(canvas)
+    tex.needsUpdate = true
+    return tex
+  }, [])
+
   return (
     <group>
-      {/* 1. 3D Curved Panoramic Factory Hall Backdrop inside the 3D scene (moves with OrbitControls!) */}
-      <mesh position={[1.35, 3.65, -4.6]} rotation={[0, 0, 0]}>
-        <planeGeometry args={[18.5, 9.2]} />
-        <meshBasicMaterial map={texture} toneMapped={false} />
+      {/* 1. Color-Graded 3D Factory Hall Backdrop aligned with the horizon */}
+      <mesh position={[1.35, 2.25, -4.2]}>
+        <planeGeometry args={[17.5, 8.2]} />
+        <meshBasicMaterial map={texture} color="#d6dde6" />
       </mesh>
 
-      {/* 2. Grounded Dark Polished Factory Concrete Floor (matches the reflective floor in factory-bg.jpg) */}
-      <mesh position={[1.35, -0.005, -1.2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[18.5, 7.2]} />
-        <meshStandardMaterial color="#18202c" roughness={0.28} metalness={0.42} />
-      </mesh>
-      {/* Subtle expansion-joint grid seams in the concrete floor */}
-      {[-1.5, 0.0, 1.5, 3.0, 4.5].map(gx => (
-        <mesh key={gx} position={[gx, 0.002, -1.2]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[0.018, 7.2]} />
-          <meshBasicMaterial color="#0f172a" transparent opacity={0.65} />
-        </mesh>
-      ))}
-      {[-0.8, 0.8, 2.1].map(gz => (
-        <mesh key={gz} position={[1.35, 0.002, gz]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[18.5, 0.018]} />
-          <meshBasicMaterial color="#0f172a" transparent opacity={0.65} />
-        </mesh>
-      ))}
-
-      {/* 3. Continuous Painted Yellow Factory Safety Aisle Stripes on the Floor */}
-      <mesh position={[1.35, 0.004, 0.86]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[14.0, 0.075]} />
-        <meshBasicMaterial color="#eab308" />
-      </mesh>
-      <mesh position={[1.35, 0.004, -0.92]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[14.0, 0.075]} />
-        <meshBasicMaterial color="#eab308" />
+      {/* 2. Seamlessly Feathered 3D Concrete Floor Pad (dissolves into the photo's floor at z = -3.4) */}
+      <mesh position={[1.35, -0.004, -0.5]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[16.0, 5.8]} />
+        <meshStandardMaterial
+          map={floorFadeTexture}
+          transparent
+          roughness={0.34}
+          metalness={0.35}
+          depthWrite={false}
+        />
       </mesh>
 
-      {/* 4. Brushed Steel Industrial Safety Guardrails along the Rear Aisle (matching factory-bg.jpg) */}
-      <group position={[1.35, 0, -0.98]}>
-        {[-3.2, -1.6, 0.0, 1.6, 3.2, 4.8].map(px => (
-          <mesh key={px} position={[px - 1.35, 0.48, 0]} castShadow>
-            <cylinderGeometry args={[0.028, 0.028, 0.96, 12]} />
-            <meshStandardMaterial color="#94a3b8" metalness={0.85} roughness={0.22} />
+      {/* 3. Weathered Industrial Traffic-Yellow Safety Aisle Line (matches yellow lines in factory-bg.jpg) */}
+      <mesh position={[1.35, 0.003, 0.82]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[8.5, 0.055]} />
+        <meshBasicMaterial color="#b88c28" transparent opacity={0.62} />
+      </mesh>
+
+      {/* 4. Brushed Aluminum Tubular Safety Guardrail in Rear Aisle (matches silver rails in factory-bg.jpg) */}
+      <group position={[1.35, 0, -0.88]}>
+        {[-2.4, -0.8, 0.8, 2.4, 4.0].map(px => (
+          <mesh key={px} position={[px - 1.35, 0.44, 0]} castShadow>
+            <cylinderGeometry args={[0.024, 0.024, 0.88, 12]} />
+            <meshStandardMaterial color="#7c8794" metalness={0.78} roughness={0.32} />
           </mesh>
         ))}
-        <mesh position={[0, 0.92, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.026, 0.026, 9.2, 12]} />
-          <meshStandardMaterial color="#cbd5e1" metalness={0.88} roughness={0.2} />
+        <mesh position={[0, 0.84, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.022, 0.022, 7.6, 12]} />
+          <meshStandardMaterial color="#8d99a6" metalness={0.82} roughness={0.28} />
         </mesh>
-        <mesh position={[0, 0.52, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.022, 0.022, 9.2, 12]} />
-          <meshStandardMaterial color="#94a3b8" metalness={0.85} roughness={0.22} />
+        <mesh position={[0, 0.46, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.018, 0.018, 7.6, 12]} />
+          <meshStandardMaterial color="#737e8c" metalness={0.78} roughness={0.32} />
         </mesh>
       </group>
 
       {/* 5. Soft Grounding Contact Shadows under the Robot, PLC Cabinet, and Conveyor Machine */}
       <ContactShadows
-        position={[1.35, 0.006, 0]}
-        opacity={0.65}
-        scale={9.5}
-        blur={1.7}
-        far={3.5}
+        position={[1.35, 0.005, 0]}
+        opacity={0.72}
+        scale={8.8}
+        blur={1.9}
+        far={3.2}
         resolution={512}
-        color="#020617"
+        color="#0b0f17"
       />
     </group>
   )
@@ -165,11 +176,11 @@ export function SingleArmScene({
   const gripperTipMatRef = useRef<THREE.MeshStandardMaterial>(null)
   const transferPulseRef = useRef<THREE.Mesh>(null)
 
-  // Requirement 8: Distinct solid metallic color per controller
-  // Left (Legacy PLC Controller): Industrial Safety Orange (#f97316 / #ea580c)
-  // Right (Autonomously Evolved Controller): Industrial Robotics Cyan (#06b6d4 / #0284c7)
-  const primaryColor = side === 'left' ? '#f97316' : '#06b6d4'
-  const accentColor = side === 'left' ? '#ea580c' : '#0284c7'
+  // Color-matched to the industrial KUKA/ABB robots & steel gantries in factory-bg.jpg:
+  // Left (Legacy PLC): Burnt Industrial Copper-Orange (#c25929 / #9c421a)
+  // Right (Evolved PLC): Anodized Industrial Steel-Teal (#2b7c94 / #1e5c70)
+  const primaryColor = side === 'left' ? '#c25929' : '#2b7c94'
+  const accentColor = side === 'left' ? '#9c421a' : '#1e5c70'
 
   // Pre-allocated 32-segment triangle-strip BufferGeometry for the angular error sector in X-Y plane
   const errorArcGeometry = useMemo(() => {
@@ -254,8 +265,8 @@ export function SingleArmScene({
 
     if (errorArcMeshRef.current && errorArcMatRef.current) {
       errorArcMeshRef.current.visible = absErr >= 0.15
-      errorArcMatRef.current.color.set(absErr > 3.2 ? '#ef4444' : '#f59e0b')
-      errorArcMatRef.current.opacity = 0.42
+      errorArcMatRef.current.color.set(absErr > 3.2 ? '#c53030' : '#b7791f')
+      errorArcMatRef.current.opacity = 0.34
     }
 
     // Requirement 10: Endpoint payload mass visible when scenario models additional load
@@ -290,7 +301,6 @@ export function SingleArmScene({
       const u = (beltPhaseRef.current + i / NUM_WORKPIECES) % 1
       const prevU = prevURef.current[i] ?? u
 
-      // When a workpiece spawns at the arm-tip handoff gate (u wraps around 0):
       if (u < prevU) {
         if (pickSuccess) {
           itemOutcomeRef.current[i] = 'picked'
@@ -313,25 +323,29 @@ export function SingleArmScene({
 
       if (group && bodyMat && stripeMat) {
         if (outcome === 'picked') {
-          // Arm is at 30.0° -> Workpiece transfers cleanly onto Upper Pass Conveyor (y = UPPER_BOX_Y)
+          // Industrial graphite tote with muted sage-emerald pass beacon
           group.position.set(x, UPPER_BOX_Y, 0)
           group.rotation.set(0, 0, 0)
-          bodyMat.color.set('#10b981')
-          bodyMat.emissive.set('#059669')
-          bodyMat.emissiveIntensity = 0.55
-          stripeMat.color.set('#ecfdf5')
+          bodyMat.color.set('#374151')
+          bodyMat.emissive.set('#1e3a2f')
+          bodyMat.emissiveIntensity = 0.35
+          stripeMat.color.set('#38a169')
+          stripeMat.emissive.set('#276749')
+          stripeMat.emissiveIntensity = 0.55
         } else {
-          // Arm sagged below 30.0° -> Workpiece slides/falls down the reject chute onto Lower Reject Belt!
+          // Sagged arm -> Tote drops onto lower reject belt with industrial crimson fault beacon
           const startY = itemDropStartYRef.current[i] ?? currentTipY
           const fallPhase = Math.min(1, u * 2.8)
           const y = startY - (startY - LOWER_BOX_Y) * (fallPhase * fallPhase)
           const tiltZ = fallPhase < 1 ? -fallPhase * 0.55 : -0.14
           group.position.set(x, y, 0)
           group.rotation.set(0, 0, tiltZ)
-          bodyMat.color.set('#ef4444')
-          bodyMat.emissive.set('#dc2626')
-          bodyMat.emissiveIntensity = 0.6
-          stripeMat.color.set('#fecaca')
+          bodyMat.color.set('#3f2e32')
+          bodyMat.emissive.set('#4a1c1c')
+          bodyMat.emissiveIntensity = 0.4
+          stripeMat.color.set('#c53030')
+          stripeMat.emissive.set('#9b2c2c')
+          stripeMat.emissiveIntensity = 0.65
         }
       }
     }
@@ -340,70 +354,70 @@ export function SingleArmScene({
       transferPulseRef.current.visible = pickSuccess && nearGate
     }
 
-    // Update Gate Beacon, Laser Curtain & Gripper Tip LED colors
+    // Update Gate Beacon, Laser Curtain & Gripper Tip LED colors (industrial toned)
     if (gateBeaconMatRef.current) {
-      gateBeaconMatRef.current.color.set(pickSuccess ? '#10b981' : '#ef4444')
-      gateBeaconMatRef.current.emissive.set(pickSuccess ? '#059669' : '#dc2626')
-      gateBeaconMatRef.current.emissiveIntensity = pickSuccess ? 1.4 : 1.8
+      gateBeaconMatRef.current.color.set(pickSuccess ? '#38a169' : '#c53030')
+      gateBeaconMatRef.current.emissive.set(pickSuccess ? '#276749' : '#9b2c2c')
+      gateBeaconMatRef.current.emissiveIntensity = pickSuccess ? 0.9 : 1.3
     }
     if (gateLaserMatRef.current) {
-      gateLaserMatRef.current.color.set(pickSuccess ? '#10b981' : '#ef4444')
-      gateLaserMatRef.current.opacity = nearGate ? 0.5 : 0.2
+      gateLaserMatRef.current.color.set(pickSuccess ? '#48bb78' : '#e53e3e')
+      gateLaserMatRef.current.opacity = nearGate ? 0.34 : 0.14
     }
     if (gripperTipMatRef.current) {
-      gripperTipMatRef.current.color.set(pickSuccess ? '#10b981' : '#ef4444')
-      gripperTipMatRef.current.emissive.set(pickSuccess ? '#059669' : '#dc2626')
-      gripperTipMatRef.current.emissiveIntensity = 1.3
+      gripperTipMatRef.current.color.set(pickSuccess ? '#38a169' : '#c53030')
+      gripperTipMatRef.current.emissive.set(pickSuccess ? '#276749' : '#9b2c2c')
+      gripperTipMatRef.current.emissiveIntensity = 0.95
     }
 
     // Update Andon Stack Light Tower (Red / Amber / Green) on PLC Cabinet
     const flash = 0.6 + 0.8 * Math.abs(Math.sin(clock.elapsedTime * 8))
     if (andonRedMatRef.current) {
       const redOn = estop || !pickSuccess
-      andonRedMatRef.current.color.set(redOn ? '#ef4444' : '#334155')
-      andonRedMatRef.current.emissive.set(redOn ? '#dc2626' : '#0f172a')
-      andonRedMatRef.current.emissiveIntensity = redOn ? flash * 1.8 : 0.08
+      andonRedMatRef.current.color.set(redOn ? '#c53030' : '#3e4752')
+      andonRedMatRef.current.emissive.set(redOn ? '#9b2c2c' : '#1f262e')
+      andonRedMatRef.current.emissiveIntensity = redOn ? flash * 1.4 : 0.05
     }
     if (andonAmberMatRef.current) {
       const amberOn = cooling || (absErr > 1.5 && absErr <= 3.2)
-      andonAmberMatRef.current.color.set(amberOn ? '#f59e0b' : '#334155')
-      andonAmberMatRef.current.emissive.set(amberOn ? '#d97706' : '#0f172a')
-      andonAmberMatRef.current.emissiveIntensity = amberOn ? 1.4 : 0.08
+      andonAmberMatRef.current.color.set(amberOn ? '#d69e2e' : '#3e4752')
+      andonAmberMatRef.current.emissive.set(amberOn ? '#b7791f' : '#1f262e')
+      andonAmberMatRef.current.emissiveIntensity = amberOn ? 1.1 : 0.05
     }
     if (andonGreenMatRef.current) {
       const greenOn = pickSuccess
-      andonGreenMatRef.current.color.set(greenOn ? '#10b981' : '#334155')
-      andonGreenMatRef.current.emissive.set(greenOn ? '#059669' : '#0f172a')
-      andonGreenMatRef.current.emissiveIntensity = greenOn ? 1.5 : 0.08
+      andonGreenMatRef.current.color.set(greenOn ? '#38a169' : '#3e4752')
+      andonGreenMatRef.current.emissive.set(greenOn ? '#276749' : '#1f262e')
+      andonGreenMatRef.current.emissiveIntensity = greenOn ? 1.1 : 0.05
     }
 
     // Fixed Base Thermal / Cooling / E-Stop LEDs
     const tempRatio = THREE.MathUtils.clamp((temp - 20) / 80, 0.08, 1.0)
-    const tempHex = temp >= 88 ? '#ef4444' : temp >= 72 ? '#f59e0b' : '#10b981'
+    const tempHex = temp >= 88 ? '#c53030' : temp >= 72 ? '#d69e2e' : '#38a169'
     if (thermalBarGroupRef.current) {
       thermalBarGroupRef.current.scale.y = tempRatio
     }
     if (thermalBarMatRef.current) {
       thermalBarMatRef.current.color.set(tempHex)
       thermalBarMatRef.current.emissive.set(tempHex)
-      thermalBarMatRef.current.emissiveIntensity = temp >= 88 ? 1.6 : 0.9
+      thermalBarMatRef.current.emissiveIntensity = temp >= 88 ? 1.2 : 0.65
     }
     if (tempLedMatRef.current) {
       tempLedMatRef.current.color.set(tempHex)
       tempLedMatRef.current.emissive.set(tempHex)
-      tempLedMatRef.current.emissiveIntensity = temp >= 88 ? 2.0 : 1.1
+      tempLedMatRef.current.emissiveIntensity = temp >= 88 ? 1.5 : 0.8
     }
     if (coolingLedMatRef.current) {
-      const coolHex = cooling ? '#06b6d4' : '#334155'
+      const coolHex = cooling ? '#319795' : '#3e4752'
       coolingLedMatRef.current.color.set(coolHex)
-      coolingLedMatRef.current.emissive.set(cooling ? '#0284c7' : '#0f172a')
-      coolingLedMatRef.current.emissiveIntensity = cooling ? 1.6 : 0.1
+      coolingLedMatRef.current.emissive.set(cooling ? '#285e61' : '#1f262e')
+      coolingLedMatRef.current.emissiveIntensity = cooling ? 1.2 : 0.05
     }
     if (estopLedMatRef.current) {
-      const estopHex = estop ? '#ef4444' : '#334155'
+      const estopHex = estop ? '#c53030' : '#3e4752'
       estopLedMatRef.current.color.set(estopHex)
-      estopLedMatRef.current.emissive.set(estop ? '#dc2626' : '#0f172a')
-      estopLedMatRef.current.emissiveIntensity = estop ? flash * 1.8 : 0.1
+      estopLedMatRef.current.emissive.set(estop ? '#9b2c2c' : '#1f262e')
+      estopLedMatRef.current.emissiveIntensity = estop ? flash * 1.4 : 0.05
     }
     if (coolingFanRef.current) {
       coolingFanRef.current.rotation.z += delta * (cooling ? 18 : 0.8)
@@ -416,13 +430,13 @@ export function SingleArmScene({
     if (hudRefs?.conveyorStatusRef.current) {
       if (estop) {
         hudRefs.conveyorStatusRef.current.textContent = '✗ E-STOP LATCHED — LINE HALTED'
-        hudRefs.conveyorStatusRef.current.style.backgroundColor = '#dc2626'
+        hudRefs.conveyorStatusRef.current.style.backgroundColor = 'rgba(155, 44, 44, 0.92)'
       } else if (pickSuccess) {
         hudRefs.conveyorStatusRef.current.textContent = `✓ PASSING TO UPPER BELT (θ = ${angle.toFixed(1)}°)`
-        hudRefs.conveyorStatusRef.current.style.backgroundColor = '#059669'
+        hudRefs.conveyorStatusRef.current.style.backgroundColor = 'rgba(39, 103, 73, 0.92)'
       } else {
         hudRefs.conveyorStatusRef.current.textContent = `✗ ARM SAGGED (${angle.toFixed(1)}°) — DROPPING TO REJECT BELT`
-        hudRefs.conveyorStatusRef.current.style.backgroundColor = '#dc2626'
+        hudRefs.conveyorStatusRef.current.style.backgroundColor = 'rgba(155, 44, 44, 0.92)'
       }
     }
     if (hudRefs?.conveyorYieldRef.current) {
@@ -435,112 +449,116 @@ export function SingleArmScene({
 
   return (
     <group>
-      {/* 0. INTEGRATED 3D FACTORY FLOOR, GUARDRAILS, CONTACT SHADOWS & 3D HALL BACKDROP */}
+      {/* 0. COLOR-MATCHED 3D FACTORY FLOOR, GUARDRAILS, CONTACT SHADOWS & HALL BACKDROP */}
       <FactoryHallEnvironment />
 
       {/* =====================================================================
           1. INDUSTRIAL PLC CABINET & FIXED ROBOT PEDESTAL AT x = -1.0 .. 0.0
-             (Bolted directly to the factory concrete floor y = 0)
+             (Color-graded in brushed gunmetal & warm industrial steel to match factory-bg.jpg)
          ===================================================================== */}
       <group>
         {/* Industrial PLC Enclosure Cabinet & Andon Stack Tower on Left (x = -0.98, z = -0.28) */}
         <group position={[-0.98, 0, -0.28]}>
           <mesh position={[0, 0.82, 0]} castShadow receiveShadow>
             <boxGeometry args={[0.56, 1.64, 0.46]} />
-            <meshStandardMaterial color="#334155" metalness={0.68} roughness={0.32} />
+            <meshStandardMaterial color="#525d6b" metalness={0.62} roughness={0.38} />
           </mesh>
           <mesh position={[0, 0.85, 0.235]}>
             <boxGeometry args={[0.46, 1.44, 0.015]} />
-            <meshStandardMaterial color="#475569" metalness={0.62} roughness={0.34} />
+            <meshStandardMaterial color="#687482" metalness={0.58} roughness={0.36} />
           </mesh>
-          {/* Glowing PLC Diagnostic HMI Screen */}
+          {/* Subtle Industrial HMI Panel */}
           <mesh position={[0, 1.15, 0.248]}>
-            <boxGeometry args={[0.34, 0.24, 0.01]} />
-            <meshStandardMaterial color={primaryColor} emissive={primaryColor} emissiveIntensity={0.85} />
+            <boxGeometry args={[0.34, 0.22, 0.01]} />
+            <meshStandardMaterial color="#1f2937" metalness={0.4} roughness={0.25} />
+          </mesh>
+          <mesh position={[0, 1.15, 0.254]}>
+            <boxGeometry args={[0.28, 0.14, 0.005]} />
+            <meshStandardMaterial color={primaryColor} emissive={primaryColor} emissiveIntensity={0.45} />
           </mesh>
           {/* 3-Light Industrial Andon Stack Tower (Red / Amber / Green) */}
           <group position={[0, 1.64, 0]}>
             <mesh position={[0, 0.18, 0]}>
-              <cylinderGeometry args={[0.024, 0.024, 0.36, 12]} />
-              <meshStandardMaterial color="#94a3b8" metalness={0.85} roughness={0.2} />
+              <cylinderGeometry args={[0.022, 0.022, 0.36, 12]} />
+              <meshStandardMaterial color="#8d99a6" metalness={0.8} roughness={0.25} />
             </mesh>
             <mesh position={[0, 0.38, 0]}>
-              <cylinderGeometry args={[0.068, 0.068, 0.1, 18]} />
-              <meshStandardMaterial ref={andonGreenMatRef} color="#10b981" emissive="#059669" emissiveIntensity={1.5} />
+              <cylinderGeometry args={[0.062, 0.062, 0.095, 18]} />
+              <meshStandardMaterial ref={andonGreenMatRef} color="#38a169" emissive="#276749" emissiveIntensity={1.1} />
             </mesh>
-            <mesh position={[0, 0.49, 0]}>
-              <cylinderGeometry args={[0.068, 0.068, 0.1, 18]} />
-              <meshStandardMaterial ref={andonAmberMatRef} color="#334155" emissive="#0f172a" emissiveIntensity={0.1} />
+            <mesh position={[0, 0.485, 0]}>
+              <cylinderGeometry args={[0.062, 0.062, 0.095, 18]} />
+              <meshStandardMaterial ref={andonAmberMatRef} color="#3e4752" emissive="#1f262e" emissiveIntensity={0.05} />
             </mesh>
-            <mesh position={[0, 0.6, 0]}>
-              <cylinderGeometry args={[0.068, 0.068, 0.1, 18]} />
-              <meshStandardMaterial ref={andonRedMatRef} color="#334155" emissive="#0f172a" emissiveIntensity={0.1} />
+            <mesh position={[0, 0.59, 0]}>
+              <cylinderGeometry args={[0.062, 0.062, 0.095, 18]} />
+              <meshStandardMaterial ref={andonRedMatRef} color="#3e4752" emissive="#1f262e" emissiveIntensity={0.05} />
             </mesh>
           </group>
         </group>
 
-        {/* Heavy Cast-Steel Robot Base Bolted to Factory Floor at x = 0 */}
+        {/* Heavy Cast-Iron & Brushed-Steel Robot Base Bolted to Factory Floor at x = 0 */}
         <mesh position={[0, 0.07, -0.18]} receiveShadow castShadow>
           <boxGeometry args={[1.18, 0.14, 0.98]} />
-          <meshStandardMaterial color="#1e293b" metalness={0.82} roughness={0.28} />
+          <meshStandardMaterial color="#343d48" metalness={0.72} roughness={0.34} />
         </mesh>
         <mesh position={[0, 0.15, -0.2]} receiveShadow>
           <boxGeometry args={[0.96, 0.04, 0.82]} />
-          <meshStandardMaterial color="#475569" metalness={0.75} roughness={0.26} />
+          <meshStandardMaterial color="#64707d" metalness={0.68} roughness={0.3} />
         </mesh>
         <mesh position={[0, 0.86, -0.32]} castShadow receiveShadow>
           <boxGeometry args={[0.48, 1.46, 0.42]} />
-          <meshStandardMaterial color="#334155" metalness={0.76} roughness={0.3} />
+          <meshStandardMaterial color="#4a5562" metalness={0.68} roughness={0.34} />
         </mesh>
 
         {/* Fixed Revolute Joint Servo Turret Housing at [0, PIVOT_Y, 0] */}
         <mesh position={[0, PIVOT_Y, -0.2]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[0.32, 0.36, 0.4, 32]} />
-          <meshStandardMaterial color="#0f172a" metalness={0.85} roughness={0.24} />
+          <meshStandardMaterial color="#2b323b" metalness={0.78} roughness={0.28} />
         </mesh>
         <mesh position={[0, PIVOT_Y, -0.02]} rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.25, 0.25, 0.06, 28]} />
-          <meshStandardMaterial color="#64748b" metalness={0.88} roughness={0.2} />
+          <meshStandardMaterial color="#7b8794" metalness={0.82} roughness={0.24} />
         </mesh>
 
         {/* Compact Status LEDs & Thermal Bar on Robot Pedestal */}
         <group position={[-0.38, 0.86, -0.15]}>
           <mesh>
             <boxGeometry args={[0.28, 0.78, 0.08]} />
-            <meshStandardMaterial color="#0f172a" metalness={0.65} roughness={0.35} />
+            <meshStandardMaterial color="#252c35" metalness={0.65} roughness={0.35} />
           </mesh>
           <mesh position={[-0.065, -0.04, 0.045]}>
             <boxGeometry args={[0.05, 0.5, 0.02]} />
-            <meshStandardMaterial color="#1e293b" />
+            <meshStandardMaterial color="#1b222a" />
           </mesh>
           <group ref={thermalBarGroupRef} position={[-0.065, -0.29, 0.055]}>
             <mesh position={[0, 0.25, 0]}>
               <boxGeometry args={[0.042, 0.5, 0.02]} />
               <meshStandardMaterial
                 ref={thermalBarMatRef}
-                color="#10b981"
-                emissive="#10b981"
-                emissiveIntensity={0.85}
+                color="#38a169"
+                emissive="#276749"
+                emissiveIntensity={0.65}
               />
             </mesh>
           </group>
           <mesh position={[0.055, 0.16, 0.05]}>
             <sphereGeometry args={[0.032, 14, 14]} />
-            <meshStandardMaterial ref={tempLedMatRef} color="#10b981" emissive="#10b981" emissiveIntensity={1.1} />
+            <meshStandardMaterial ref={tempLedMatRef} color="#38a169" emissive="#276749" emissiveIntensity={0.8} />
           </mesh>
           <mesh position={[0.055, 0.02, 0.05]}>
             <sphereGeometry args={[0.032, 14, 14]} />
-            <meshStandardMaterial ref={coolingLedMatRef} color="#334155" emissive="#0f172a" emissiveIntensity={0.1} />
+            <meshStandardMaterial ref={coolingLedMatRef} color="#3e4752" emissive="#1f262e" emissiveIntensity={0.05} />
           </mesh>
           <mesh position={[0.055, -0.12, 0.05]}>
             <sphereGeometry args={[0.032, 14, 14]} />
-            <meshStandardMaterial ref={estopLedMatRef} color="#334155" emissive="#0f172a" emissiveIntensity={0.1} />
+            <meshStandardMaterial ref={estopLedMatRef} color="#3e4752" emissive="#1f262e" emissiveIntensity={0.05} />
           </mesh>
           <group ref={coolingFanRef} position={[0.055, -0.26, 0.05]}>
             {[0, 1, 2].map(b => (
               <mesh key={b} rotation={[0, 0, (b * Math.PI) / 3]}>
                 <boxGeometry args={[0.085, 0.02, 0.01]} />
-                <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={0.6} />
+                <meshStandardMaterial color="#718096" metalness={0.7} roughness={0.3} />
               </mesh>
             ))}
           </group>
@@ -549,22 +567,21 @@ export function SingleArmScene({
 
       {/* =====================================================================
           2. COMPACT INDUSTRIAL ROTARY ENCODER RING ON JOINT HOUSING (r = 0.52)
-             (Replaces the giant floating textbook protractor so it looks like a real machine!)
          ===================================================================== */}
       <group position={[0, PIVOT_Y, -0.11]}>
         <mesh>
-          <ringGeometry args={[0.48, 0.52, 48, 1, -Math.PI / 2, Math.PI]} />
-          <meshBasicMaterial color="#64748b" transparent opacity={0.55} side={THREE.DoubleSide} />
+          <ringGeometry args={[0.48, 0.51, 48, 1, -Math.PI / 2, Math.PI]} />
+          <meshBasicMaterial color="#64748b" transparent opacity={0.42} side={THREE.DoubleSide} />
         </mesh>
         {DEGREE_TICKS.map(deg => {
           const rad = (deg * Math.PI) / 180
-          const tickLen = 0.07
-          const rMid = 0.5 - tickLen * 0.5
+          const tickLen = 0.065
+          const rMid = 0.495 - tickLen * 0.5
           return (
             <group key={deg} position={[rMid * Math.cos(rad), rMid * Math.sin(rad), 0]} rotation={[0, 0, rad]}>
               <mesh>
-                <boxGeometry args={[tickLen, 0.016, 0.004]} />
-                <meshBasicMaterial color={deg === 30 ? '#34d399' : '#94a3b8'} />
+                <boxGeometry args={[tickLen, 0.015, 0.004]} />
+                <meshBasicMaterial color={deg === 30 ? '#48bb78' : '#94a3b8'} />
               </mesh>
             </group>
           )
@@ -577,9 +594,9 @@ export function SingleArmScene({
       <mesh ref={errorArcMeshRef} position={[0, PIVOT_Y, -0.08]} geometry={errorArcGeometry}>
         <meshBasicMaterial
           ref={errorArcMatRef}
-          color="#ef4444"
+          color="#c53030"
           transparent
-          opacity={0.42}
+          opacity={0.34}
           side={THREE.DoubleSide}
           depthWrite={false}
         />
@@ -592,32 +609,32 @@ export function SingleArmScene({
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.19, 0.19, 0.09, 24]} />
           <meshStandardMaterial
-            color="#10b981"
-            emissive="#059669"
-            emissiveIntensity={0.55}
+            color="#38a169"
+            emissive="#276749"
+            emissiveIntensity={0.35}
             transparent
-            opacity={0.32}
+            opacity={0.24}
             depthWrite={false}
           />
         </mesh>
         <mesh position={[ARM_LENGTH * 0.5, 0, 0]}>
           <boxGeometry args={[ARM_LENGTH, 0.16, 0.08]} />
           <meshStandardMaterial
-            color="#10b981"
-            emissive="#059669"
-            emissiveIntensity={0.55}
+            color="#38a169"
+            emissive="#276749"
+            emissiveIntensity={0.35}
             transparent
-            opacity={0.32}
+            opacity={0.24}
             depthWrite={false}
           />
         </mesh>
         <mesh position={[ARM_LENGTH * 0.5, 0, 0.045]}>
-          <boxGeometry args={[ARM_LENGTH, 0.024, 0.01]} />
-          <meshBasicMaterial color="#34d399" transparent opacity={0.85} />
+          <boxGeometry args={[ARM_LENGTH, 0.022, 0.01]} />
+          <meshBasicMaterial color="#48bb78" transparent opacity={0.65} />
         </mesh>
         <mesh position={[ARM_LENGTH, 0, 0]}>
-          <ringGeometry args={[0.13, 0.19, 28]} />
-          <meshBasicMaterial color="#34d399" transparent opacity={0.9} side={THREE.DoubleSide} />
+          <ringGeometry args={[0.13, 0.18, 28]} />
+          <meshBasicMaterial color="#48bb78" transparent opacity={0.72} side={THREE.DoubleSide} />
         </mesh>
       </group>
 
@@ -628,15 +645,15 @@ export function SingleArmScene({
       <group ref={armGroupRef} position={[0, PIVOT_Y, 0]}>
         <mesh rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[0.22, 0.22, 0.2, 32]} />
-          <meshStandardMaterial color={accentColor} metalness={0.65} roughness={0.25} />
+          <meshStandardMaterial color={accentColor} metalness={0.62} roughness={0.32} />
         </mesh>
         <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.11]}>
           <cylinderGeometry args={[0.1, 0.1, 0.04, 20]} />
-          <meshStandardMaterial color="#0f172a" metalness={0.88} roughness={0.2} />
+          <meshStandardMaterial color="#252c35" metalness={0.82} roughness={0.26} />
         </mesh>
         <mesh position={[-0.2, 0, 0]} castShadow>
           <boxGeometry args={[0.26, 0.24, 0.16]} />
-          <meshStandardMaterial color="#334155" metalness={0.78} roughness={0.28} />
+          <meshStandardMaterial color="#3b4450" metalness={0.75} roughness={0.32} />
         </mesh>
 
         {/* Main 1-DOF Rigid Structural Arm Boom */}
@@ -645,24 +662,25 @@ export function SingleArmScene({
           <meshStandardMaterial
             color={primaryColor}
             emissive={accentColor}
-            emissiveIntensity={0.22}
-            metalness={0.55}
-            roughness={0.25}
+            emissiveIntensity={0.12}
+            metalness={0.58}
+            roughness={0.32}
           />
         </mesh>
+        {/* Brushed aluminum side stiffener rail */}
         <mesh position={[ARM_LENGTH * 0.5, 0, 0.08]}>
-          <boxGeometry args={[ARM_LENGTH - 0.28, 0.065, 0.014]} />
-          <meshStandardMaterial color="#f8fafc" metalness={0.75} roughness={0.2} />
+          <boxGeometry args={[ARM_LENGTH - 0.28, 0.062, 0.014]} />
+          <meshStandardMaterial color="#9aa5b1" metalness={0.78} roughness={0.28} />
         </mesh>
 
         {/* Endpoint Magnetic/Vacuum Transfer Head at x = ARM_LENGTH */}
         <mesh position={[ARM_LENGTH, 0, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[0.15, 0.15, 0.18, 28]} />
-          <meshStandardMaterial color="#0f172a" metalness={0.85} roughness={0.22} />
+          <meshStandardMaterial color="#2b323b" metalness={0.82} roughness={0.26} />
         </mesh>
         <mesh position={[ARM_LENGTH, 0, 0.1]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.08, 0.08, 0.024, 20]} />
-          <meshStandardMaterial ref={gripperTipMatRef} color="#10b981" emissive="#059669" emissiveIntensity={1.2} />
+          <cylinderGeometry args={[0.078, 0.078, 0.024, 20]} />
+          <meshStandardMaterial ref={gripperTipMatRef} color="#38a169" emissive="#276749" emissiveIntensity={0.9} />
         </mesh>
 
         {/* ===================================================================
@@ -671,67 +689,71 @@ export function SingleArmScene({
         <group ref={payloadRef} position={[ARM_LENGTH - 0.2, -0.22, 0]} visible={false}>
           <mesh position={[0, 0.1, 0]} castShadow>
             <boxGeometry args={[0.08, 0.12, 0.1]} />
-            <meshStandardMaterial color="#64748b" metalness={0.85} roughness={0.25} />
+            <meshStandardMaterial color="#64707d" metalness={0.8} roughness={0.28} />
           </mesh>
           <mesh position={[0, -0.04, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
             <cylinderGeometry args={[0.19, 0.19, 0.28, 24]} />
-            <meshStandardMaterial color="#1e293b" metalness={0.82} roughness={0.26} />
+            <meshStandardMaterial color="#2b323b" metalness={0.78} roughness={0.3} />
           </mesh>
           <mesh position={[0, -0.04, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.196, 0.196, 0.11, 24]} />
-            <meshStandardMaterial color="#f97316" emissive="#ea580c" emissiveIntensity={0.45} />
+            <cylinderGeometry args={[0.196, 0.196, 0.1, 24]} />
+            <meshStandardMaterial color="#c25929" metalness={0.5} roughness={0.35} />
           </mesh>
         </group>
       </group>
 
       {/* =====================================================================
           7. GROUNDED 2-TIER INDUSTRIAL CONVEYOR MACHINE (x = 1.58 .. 3.48)
-             Bolted directly to the factory floor with a solid steel lower cabinet
-             base (y = 0 .. 1.02) and structural steel frame up to the Upper
-             30.0° Pass Conveyor (y = 2.16)!
+             Color-matched in brushed steel, aluminum, and dark slate to blend
+             naturally into the factory cells of factory-bg.jpg!
          ===================================================================== */}
       <group>
-        {/* Glowing Transfer Bridge Pulse between 30.0° Arm Tip and Upper Conveyor Entrance */}
+        {/* Subtle Transfer Alignment Bridge between 30.0° Arm Tip and Upper Conveyor Entrance */}
         <mesh ref={transferPulseRef} position={[CONV_X_START - 0.09, TARGET_TIP_Y, 0]}>
-          <boxGeometry args={[0.18, 0.045, 0.2]} />
-          <meshBasicMaterial color="#34d399" transparent opacity={0.75} />
+          <boxGeometry args={[0.18, 0.04, 0.18]} />
+          <meshBasicMaterial color="#48bb78" transparent opacity={0.55} />
         </mesh>
 
         {/* --- SOLID GROUNDED MACHINE BASE CABINET UNDER CONVEYOR (y = 0 .. LOWER_DECK_Y = 1.02) --- */}
         <mesh position={[CONV_X_MID, LOWER_DECK_Y * 0.48, 0]} castShadow receiveShadow>
           <boxGeometry args={[CONV_X_SPAN + 0.08, LOWER_DECK_Y * 0.96, 0.56]} />
-          <meshStandardMaterial color="#1e293b" metalness={0.72} roughness={0.34} />
+          <meshStandardMaterial color="#3e4752" metalness={0.68} roughness={0.36} />
         </mesh>
-        {/* recessed sheet-metal access doors on conveyor base cabinet */}
+        {/* Brushed steel access doors on conveyor base cabinet */}
         {[CONV_X_START + 0.48, CONV_X_END - 0.48].map((dx, idx) => (
           <mesh key={idx} position={[dx, LOWER_DECK_Y * 0.48, 0.285]}>
             <boxGeometry args={[0.72, LOWER_DECK_Y * 0.72, 0.015]} />
-            <meshStandardMaterial color="#334155" metalness={0.65} roughness={0.35} />
+            <meshStandardMaterial color="#525d6b" metalness={0.62} roughness={0.36} />
           </mesh>
         ))}
-        {/* Yellow/Black floor kickplate along bottom of conveyor machine */}
-        <mesh position={[CONV_X_MID, 0.05, 0.29]}>
-          <boxGeometry args={[CONV_X_SPAN + 0.1, 0.08, 0.015]} />
-          <meshBasicMaterial color="#eab308" />
+        {/* Weathered yellow floor kickplate along bottom of conveyor machine */}
+        <mesh position={[CONV_X_MID, 0.045, 0.29]}>
+          <boxGeometry args={[CONV_X_SPAN + 0.1, 0.065, 0.015]} />
+          <meshBasicMaterial color="#b88c28" />
         </mesh>
 
         {/* --- A. UPPER 30.0° TARGET PASS CONVEYOR (x = 1.58 .. 3.48, y = 2.16) --- */}
         <mesh position={[CONV_X_MID, UPPER_DECK_Y, 0]} castShadow receiveShadow>
           <boxGeometry args={[CONV_X_SPAN, 0.11, 0.58]} />
-          <meshStandardMaterial color="#1e293b" metalness={0.78} roughness={0.3} />
+          <meshStandardMaterial color="#2d3540" metalness={0.72} roughness={0.34} />
         </mesh>
+        {/* Brushed aluminum side rails with subtle emerald indicator trim */}
         <mesh position={[CONV_X_MID, UPPER_DECK_Y + 0.045, 0.3]}>
-          <boxGeometry args={[CONV_X_SPAN, 0.055, 0.035]} />
-          <meshStandardMaterial color="#10b981" emissive="#059669" emissiveIntensity={0.5} />
+          <boxGeometry args={[CONV_X_SPAN, 0.05, 0.03]} />
+          <meshStandardMaterial color="#7b8794" metalness={0.78} roughness={0.28} />
         </mesh>
         <mesh position={[CONV_X_MID, UPPER_DECK_Y + 0.045, -0.3]}>
-          <boxGeometry args={[CONV_X_SPAN, 0.055, 0.035]} />
-          <meshStandardMaterial color="#10b981" emissive="#059669" emissiveIntensity={0.5} />
+          <boxGeometry args={[CONV_X_SPAN, 0.05, 0.03]} />
+          <meshStandardMaterial color="#7b8794" metalness={0.78} roughness={0.28} />
+        </mesh>
+        <mesh position={[CONV_X_MID, UPPER_DECK_Y + 0.05, 0.318]}>
+          <boxGeometry args={[CONV_X_SPAN - 0.08, 0.018, 0.008]} />
+          <meshStandardMaterial color="#38a169" emissive="#276749" emissiveIntensity={0.45} />
         </mesh>
         {[CONV_X_START + 0.04, CONV_X_END - 0.04].map((rx, idx) => (
           <mesh key={idx} position={[rx, UPPER_DECK_Y, 0]} rotation={[Math.PI / 2, 0, 0]}>
             <cylinderGeometry args={[0.06, 0.06, 0.56, 18]} />
-            <meshStandardMaterial color="#64748b" metalness={0.85} roughness={0.22} />
+            <meshStandardMaterial color="#687482" metalness={0.82} roughness={0.26} />
           </mesh>
         ))}
 
@@ -739,15 +761,15 @@ export function SingleArmScene({
         <group position={[CONV_X_START, UPPER_DECK_Y + 0.21, 0]}>
           <mesh position={[0, 0, -0.28]}>
             <boxGeometry args={[0.055, 0.4, 0.045]} />
-            <meshStandardMaterial color="#475569" metalness={0.78} roughness={0.28} />
+            <meshStandardMaterial color="#687482" metalness={0.75} roughness={0.3} />
           </mesh>
           <mesh position={[0, 0.19, 0]}>
-            <boxGeometry args={[0.065, 0.05, 0.6]} />
-            <meshStandardMaterial ref={gateBeaconMatRef} color="#10b981" emissive="#059669" emissiveIntensity={1.4} />
+            <boxGeometry args={[0.065, 0.045, 0.6]} />
+            <meshStandardMaterial ref={gateBeaconMatRef} color="#38a169" emissive="#276749" emissiveIntensity={0.9} />
           </mesh>
           <mesh position={[0, 0, 0]}>
-            <boxGeometry args={[0.015, 0.36, 0.52]} />
-            <meshBasicMaterial ref={gateLaserMatRef} color="#10b981" transparent opacity={0.3} />
+            <boxGeometry args={[0.012, 0.36, 0.52]} />
+            <meshBasicMaterial ref={gateLaserMatRef} color="#48bb78" transparent opacity={0.2} />
           </mesh>
         </group>
 
@@ -755,45 +777,50 @@ export function SingleArmScene({
         <group position={[CONV_X_END + 0.14, UPPER_DECK_Y + 0.21, 0]}>
           <mesh castShadow>
             <boxGeometry args={[0.32, 0.46, 0.64]} />
-            <meshStandardMaterial color="#0f172a" metalness={0.75} roughness={0.3} />
+            <meshStandardMaterial color="#343d48" metalness={0.72} roughness={0.32} />
           </mesh>
           <mesh position={[-0.165, 0.17, 0]}>
-            <boxGeometry args={[0.02, 0.055, 0.58]} />
-            <meshStandardMaterial color="#10b981" emissive="#059669" emissiveIntensity={1.1} />
+            <boxGeometry args={[0.02, 0.045, 0.58]} />
+            <meshStandardMaterial color="#38a169" emissive="#276749" emissiveIntensity={0.75} />
           </mesh>
         </group>
 
         {/* --- B. LOWER WAIST-HIGH REJECT CONVEYOR DECK (y = 1.02) --- */}
         <mesh position={[CONV_X_MID, LOWER_DECK_Y, 0]} castShadow receiveShadow>
           <boxGeometry args={[CONV_X_SPAN + 0.08, 0.11, 0.62]} />
-          <meshStandardMaterial color="#0f172a" metalness={0.78} roughness={0.32} />
+          <meshStandardMaterial color="#2d3540" metalness={0.72} roughness={0.34} />
         </mesh>
+        {/* Brushed aluminum side rails with subtle crimson reject trim */}
         <mesh position={[CONV_X_MID, LOWER_DECK_Y + 0.05, 0.32]}>
-          <boxGeometry args={[CONV_X_SPAN + 0.08, 0.055, 0.035]} />
-          <meshStandardMaterial color="#ef4444" emissive="#dc2626" emissiveIntensity={0.45} />
+          <boxGeometry args={[CONV_X_SPAN + 0.08, 0.05, 0.03]} />
+          <meshStandardMaterial color="#687482" metalness={0.75} roughness={0.3} />
         </mesh>
         <mesh position={[CONV_X_MID, LOWER_DECK_Y + 0.05, -0.32]}>
-          <boxGeometry args={[CONV_X_SPAN + 0.08, 0.055, 0.035]} />
-          <meshStandardMaterial color="#ef4444" emissive="#dc2626" emissiveIntensity={0.45} />
+          <boxGeometry args={[CONV_X_SPAN + 0.08, 0.05, 0.03]} />
+          <meshStandardMaterial color="#687482" metalness={0.75} roughness={0.3} />
+        </mesh>
+        <mesh position={[CONV_X_MID, LOWER_DECK_Y + 0.055, 0.338]}>
+          <boxGeometry args={[CONV_X_SPAN, 0.018, 0.008]} />
+          <meshStandardMaterial color="#c53030" emissive="#9b2c2c" emissiveIntensity={0.45} />
         </mesh>
 
         {/* Lower Reject Scrap Hopper Hood at Right End */}
         <group position={[CONV_X_END + 0.14, LOWER_DECK_Y + 0.2, 0]}>
           <mesh castShadow>
             <boxGeometry args={[0.34, 0.42, 0.66]} />
-            <meshStandardMaterial color="#1e293b" metalness={0.72} roughness={0.35} />
+            <meshStandardMaterial color="#343d48" metalness={0.72} roughness={0.35} />
           </mesh>
           <mesh position={[-0.175, 0.15, 0]}>
-            <boxGeometry args={[0.02, 0.055, 0.6]} />
-            <meshStandardMaterial color="#ef4444" emissive="#dc2626" emissiveIntensity={1.0} />
+            <boxGeometry args={[0.02, 0.045, 0.6]} />
+            <meshStandardMaterial color="#c53030" emissive="#9b2c2c" emissiveIntensity={0.75} />
           </mesh>
         </group>
 
-        {/* Structural Steel Frame Columns connecting Lower Base (y = 1.02) to Upper Deck (y = 2.16) */}
+        {/* Brushed Steel Frame Columns connecting Lower Base (y = 1.02) to Upper Deck (y = 2.16) */}
         {[CONV_X_START + 0.12, CONV_X_MID, CONV_X_END - 0.12].map((sx, idx) => (
           <mesh key={idx} position={[sx, (LOWER_DECK_Y + UPPER_DECK_Y) * 0.5, -0.27]} castShadow>
             <boxGeometry args={[0.085, UPPER_DECK_Y - LOWER_DECK_Y, 0.085]} />
-            <meshStandardMaterial color="#475569" metalness={0.78} roughness={0.28} />
+            <meshStandardMaterial color="#687482" metalness={0.78} roughness={0.28} />
           </mesh>
         ))}
 
@@ -807,7 +834,7 @@ export function SingleArmScene({
               position={[CONV_X_START + (i / NUM_BELT_SLATS) * CONV_X_SPAN, UPPER_DECK_Y + 0.06, 0]}
             >
               <boxGeometry args={[0.04, 0.014, 0.5]} />
-              <meshStandardMaterial color="#64748b" metalness={0.65} roughness={0.35} />
+              <meshStandardMaterial color="#525d6b" metalness={0.65} roughness={0.35} />
             </mesh>
             <mesh
               ref={el => {
@@ -816,12 +843,12 @@ export function SingleArmScene({
               position={[CONV_X_START + (i / NUM_BELT_SLATS) * CONV_X_SPAN, LOWER_DECK_Y + 0.06, 0]}
             >
               <boxGeometry args={[0.04, 0.014, 0.54]} />
-              <meshStandardMaterial color="#64748b" metalness={0.65} roughness={0.35} />
+              <meshStandardMaterial color="#525d6b" metalness={0.65} roughness={0.35} />
             </mesh>
           </group>
         ))}
 
-        {/* 3 Cycling Workpiece Crates */}
+        {/* 3 Cycling Industrial Workpiece Totes */}
         {Array.from({ length: NUM_WORKPIECES }).map((_, i) => (
           <group
             key={i}
@@ -831,27 +858,29 @@ export function SingleArmScene({
             position={[CONV_X_START + (i / NUM_WORKPIECES) * CONV_X_SPAN, UPPER_BOX_Y, 0]}
           >
             <mesh castShadow receiveShadow>
-              <boxGeometry args={[0.23, 0.2, 0.24]} />
+              <boxGeometry args={[0.23, 0.19, 0.24]} />
               <meshStandardMaterial
                 ref={el => {
                   workpieceBodyMatRefs.current[i] = el
                 }}
-                color="#10b981"
-                emissive="#059669"
-                emissiveIntensity={0.55}
-                metalness={0.38}
-                roughness={0.28}
+                color="#374151"
+                emissive="#1e3a2f"
+                emissiveIntensity={0.35}
+                metalness={0.55}
+                roughness={0.32}
               />
             </mesh>
-            <mesh position={[0, 0.105, 0]}>
-              <boxGeometry args={[0.19, 0.02, 0.2]} />
+            <mesh position={[0, 0.1, 0]}>
+              <boxGeometry args={[0.19, 0.025, 0.2]} />
               <meshStandardMaterial
                 ref={el => {
                   workpieceStripeMatRefs.current[i] = el
                 }}
-                color="#ecfdf5"
-                metalness={0.65}
-                roughness={0.22}
+                color="#38a169"
+                emissive="#276749"
+                emissiveIntensity={0.55}
+                metalness={0.5}
+                roughness={0.28}
               />
             </mesh>
           </group>
