@@ -37,3 +37,19 @@ def test_api_and_websocket_with_local_storage(monkeypatch,tmp_path):
         reset=client.post('/api/sabotage',json={'enabled':False,'thermal_spike':False})
         assert reset.status_code==200
         assert reset.json()['snapshot']['right_evolved']['estop']==0
+        scen_resp=client.get('/api/scenarios')
+        assert scen_resp.status_code==200
+        scen_list=scen_resp.json()['scenarios']
+        assert len(scen_list)==6
+        assert [s['id'] for s in scen_list]==['nominal','payload_mass','low_friction','high_inertia_sensor_lag','thermal_stress','combined_perturbations']
+        lag_ctrl=client.post('/api/sim/control',json={'scenario_id':'high_inertia_sensor_lag'}).json()['snapshot']
+        assert lag_ctrl['scenario_id']=='high_inertia_sensor_lag'
+        assert lag_ctrl['world']['inertia']==4.5 and lag_ctrl['world']['sensor_lag_s']==0.45
+        paused=client.post('/api/sim/control',json={'action':'pause'}).json()['snapshot']
+        assert paused['paused'] is True
+        played=client.post('/api/sim/control',json={'action':'play'}).json()['snapshot']
+        assert played['paused'] is False
+        replayed=client.post('/api/sim/control',json={'action':'replay'}).json()['snapshot']
+        assert replayed['scenario_id']=='high_inertia_sensor_lag' and replayed['paused'] is False
+        reset_ctrl=client.post('/api/sim/control',json={'action':'reset'}).json()['snapshot']
+        assert reset_ctrl['scenario_id']=='nominal' and reset_ctrl['world']['efficiency']==1.0

@@ -22,9 +22,9 @@ const modules = [
   { code: 'EVM 01', tag: 'ANVIL BRG', hue: '#0f172a' },
 ]
 
-const slotX = (slot: number) => (slot - 2) * 1.65
+const slotX = (slot: number) => (slot - 2) * 1.45
 const pinX = (pin: Terminal, i: number) =>
-  slotX(pin.slot) + (pin.slot === 1 ? (i - 1.5) * 0.27 : pin.slot === 3 ? (i - 0.5) * 0.4 : 0)
+  slotX(pin.slot) + (pin.slot === 1 ? (i - 1.5) * 0.25 : pin.slot === 3 ? (i - 0.5) * 0.36 : 0)
 
 function ScrewPin({
   pin,
@@ -61,7 +61,7 @@ function ScrewPin({
 
   return (
     <group
-      position={[x, 5.48, 0.8]}
+      position={[x, 3.74, 0.02]}
       onClick={e => {
         e.stopPropagation()
         onSelect(pin)
@@ -125,14 +125,14 @@ function Cable({
     () =>
       new THREE.CubicBezierCurve3(
         new THREE.Vector3(...start),
-        new THREE.Vector3(start[0], 4.55 - index * 0.045, 1.15),
-        new THREE.Vector3(end[0], 4.05 - index * 0.11, 0.5),
+        new THREE.Vector3(start[0] * 0.9, 2.75 - index * 0.045, 0.35),
+        new THREE.Vector3(end[0] * 0.72, 1.35 - index * 0.06, 0.18),
         new THREE.Vector3(...end)
       ),
     [start[0], start[1], start[2], end[0], end[1], end[2], index]
   )
   const points = useMemo(() => curve.getPoints(42), [curve])
-  const tube = useMemo(() => new THREE.TubeGeometry(curve, 48, 0.028, 6, false), [curve])
+  const tube = useMemo(() => new THREE.TubeGeometry(curve, 48, 0.03, 6, false), [curve])
 
   useFrame(({ clock }) => {
     if (!matRef.current) return
@@ -149,7 +149,7 @@ function Cable({
       <Line
         points={points}
         color={color}
-        lineWidth={2.2}
+        lineWidth={2.5}
         dashed
         dashSize={0.14}
         gapSize={0.09}
@@ -198,7 +198,6 @@ function ModuleStatusLed({
     let intensity = 1.1
 
     if (slot === 0) {
-      // PS 24V: Emerald normal, Amber when sabotage_active (-58% torque drop)
       if (sabotage) {
         hex = '#d97706'
         intensity = 1.2 + 0.5 * Math.sin(clock.elapsedTime * 6)
@@ -207,7 +206,6 @@ function ModuleStatusLed({
         intensity = 1.1
       }
     } else if (slot === 1) {
-      // AI 16: Crimson if %IW3 is UNKNOWN, Amber if %IW1 is INFERRED, Signal Blue if SEEN
       const iw3 = terminals.find(t => t.id === '%IW3')
       const iw1 = terminals.find(t => t.id === '%IW1')
       if (!iw3 || iw3.state === 'UNKNOWN') {
@@ -221,7 +219,6 @@ function ModuleStatusLed({
         intensity = 1.3
       }
     } else if (slot === 2) {
-      // PWM 01: Crimson when estop == 1, otherwise pulses with live PWM duty
       if (estop) {
         hex = '#dc2626'
         intensity = 1.6 + 0.8 * Math.sin(clock.elapsedTime * 10)
@@ -230,7 +227,6 @@ function ModuleStatusLed({
         intensity = 0.6 + pwmDuty * 1.8
       }
     } else if (slot === 3) {
-      // SR 02 Safety Relay: Flashing Crimson on estop, Amber when safety boundaries UNKNOWN, Signal Blue when cooling or probed
       const qx0 = terminals.find(t => t.id === '%QX0.0')
       const qx1 = terminals.find(t => t.id === '%QX0.1')
       const safetyUnknown = qx0?.state === 'UNKNOWN' || qx1?.state === 'UNKNOWN'
@@ -248,7 +244,6 @@ function ModuleStatusLed({
         intensity = 1.25
       }
     } else if (slot === 4) {
-      // EVM 01: Amber until evm_probe passes, then Signal Blue
       if (evmPassed) {
         hex = '#0284c7'
         intensity = 1.35
@@ -264,7 +259,7 @@ function ModuleStatusLed({
   })
 
   return (
-    <mesh position={[-0.5, 0.6, 0.405]}>
+    <mesh position={[-0.45, 0.55, 0.38]}>
       <sphereGeometry args={[0.052, 12, 12]} />
       <meshStandardMaterial ref={ledRef} color="#d97706" emissive="#d97706" emissiveIntensity={1.1} />
     </mesh>
@@ -320,7 +315,7 @@ function RotaryStrobeTower({
   })
 
   return (
-    <group position={[4.15, 7.45, 0.05]}>
+    <group position={[3.55, 5.62, -0.68]}>
       {/* Base mount */}
       <mesh position={[0, -0.1, 0]}>
         <cylinderGeometry args={[0.16, 0.2, 0.14, 20]} />
@@ -381,13 +376,63 @@ export default function PlcChassis3D({
 
   return (
     <group>
+      {/* Grounded Steel Control Cabinet Stand & Floor Plinth (touches floor y=0) */}
+      <mesh position={[0, 1.95, -0.82]} castShadow receiveShadow>
+        <boxGeometry args={[2.2, 3.9, 0.38]} />
+        <meshStandardMaterial color="#334155" metalness={0.72} roughness={0.38} />
+      </mesh>
+      {/* Vertical wire duct trunk inside pedestal */}
+      <mesh position={[0, 1.85, -0.61]}>
+        <boxGeometry args={[0.72, 3.6, 0.06]} />
+        <meshStandardMaterial color="#1e293b" metalness={0.65} roughness={0.42} />
+      </mesh>
+      {/* Heavy floor baseplate */}
+      <mesh position={[0, 0.06, -0.78]} receiveShadow>
+        <boxGeometry args={[2.85, 0.14, 0.95]} />
+        <meshStandardMaterial color="#0f172a" metalness={0.8} roughness={0.32} />
+      </mesh>
+
+      {/* Plain-English 3D Callout Sign Above Center PLC Cabinet */}
+      <Html position={[0, 5.95, -0.55]} center distanceFactor={11.5} style={{ pointerEvents: 'none' }}>
+        <div
+          style={{
+            background: 'rgba(15, 23, 42, 0.95)',
+            color: '#ffffff',
+            border: `2px solid ${anyUnknown ? '#dc2626' : '#0284c7'}`,
+            padding: '6px 12px',
+            borderRadius: '4px',
+            textAlign: 'center',
+            whiteSpace: 'nowrap',
+            boxShadow: '0 6px 18px rgba(15, 23, 42, 0.22)',
+            fontFamily: "var(--font-sans, 'Space Grotesk', sans-serif)",
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em' }}>
+            CENTER: FACTORY PLC BRAIN (7 Wires)
+          </div>
+          <div
+            style={{
+              fontSize: '9.5px',
+              fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)",
+              color: anyUnknown ? '#fca5a5' : '#7dd3fc',
+              marginTop: '2px',
+              fontWeight: 600,
+            }}
+          >
+            {anyUnknown
+              ? '3 Safety Wires Unknown (Red Dashed) — Click "Step 1: Scan PLC"'
+              : '6/7 Wires Mapped by FFI Probe (72°C Fan · 88°C Cutoff)'}
+          </div>
+        </div>
+      </Html>
+
       {/* Dark charcoal DIN-rail PLC backplane */}
-      <RoundedBox args={[9.25, 2.5, 0.44]} radius={0.07} position={[0, 6.06, -0.12]} castShadow receiveShadow>
+      <RoundedBox args={[8.1, 2.25, 0.42]} radius={0.07} position={[0, 4.35, -0.75]} castShadow receiveShadow>
         <meshStandardMaterial color="#1e293b" metalness={0.62} roughness={0.55} />
       </RoundedBox>
       {/* Top state indicator strip across PLC cabinet */}
-      <mesh position={[0, 7.27, 0.11]}>
-        <boxGeometry args={[8.9, 0.075, 0.16]} />
+      <mesh position={[0, 5.45, -0.54]}>
+        <boxGeometry args={[7.8, 0.075, 0.16]} />
         <meshStandardMaterial
           color={headerBarColor}
           emissive={headerBarColor}
@@ -397,8 +442,8 @@ export default function PlcChassis3D({
         />
       </mesh>
       {/* Lower DIN rail */}
-      <mesh position={[0, 5.12, 0.2]}>
-        <boxGeometry args={[8.9, 0.12, 0.18]} />
+      <mesh position={[0, 3.42, -0.45]}>
+        <boxGeometry args={[7.8, 0.12, 0.18]} />
         <meshStandardMaterial color="#94a3b8" metalness={0.88} roughness={0.26} />
       </mesh>
 
@@ -406,38 +451,35 @@ export default function PlcChassis3D({
       <RotaryStrobeTower terminals={terminals} frame={frame} />
 
       {[0, 1, 2, 3, 4].map(slot => (
-        <group position={[slotX(slot), 6.13, 0.25]} key={slot}>
+        <group position={[slotX(slot), 4.4, -0.4]} key={slot}>
           {/* Clean industrial light-slate module body */}
-          <RoundedBox args={[1.44, 1.74, 0.68]} radius={0.04} castShadow receiveShadow>
+          <RoundedBox args={[1.32, 1.62, 0.64]} radius={0.04} castShadow receiveShadow>
             <meshStandardMaterial color="#e2e8f0" metalness={0.22} roughness={0.42} />
           </RoundedBox>
           {/* High-contrast dark slate nameplate */}
-          <mesh position={[0, 0.58, 0.36]}>
-            <boxGeometry args={[1.3, 0.42, 0.06]} />
+          <mesh position={[0, 0.54, 0.34]}>
+            <boxGeometry args={[1.18, 0.38, 0.06]} />
             <meshStandardMaterial color={modules[slot].hue} metalness={0.35} roughness={0.45} />
           </mesh>
           {/* Terminal block housing */}
-          <mesh position={[0, -0.39, 0.36]}>
-            <boxGeometry args={[1.3, 0.34, 0.07]} />
+          <mesh position={[0, -0.36, 0.34]}>
+            <boxGeometry args={[1.18, 0.32, 0.07]} />
             <meshStandardMaterial color="#cbd5e1" metalness={0.35} roughness={0.4} />
           </mesh>
           {/* Cooling & bus slots */}
           {[0, 1, 2, 3, 4].map(n => (
-            <mesh key={n} position={[-0.52 + n * 0.26, -0.12, 0.363]}>
-              <boxGeometry args={[0.055, 0.33, 0.025]} />
+            <mesh key={n} position={[-0.46 + n * 0.23, -0.1, 0.34]}>
+              <boxGeometry args={[0.05, 0.3, 0.025]} />
               <meshStandardMaterial color="#64748b" />
             </mesh>
           ))}
           {/* Telemetry-driven Module Status LED */}
           <ModuleStatusLed slot={slot} terminals={terminals} evmPassed={evmPassed} frame={frame} />
-          <Html position={[0, 0.57, 0.44]} center style={{ pointerEvents: 'none' }}>
+          <Html position={[0, 0.53, 0.42]} center style={{ pointerEvents: 'none' }}>
             <div className="module-3d-label">
               <b>{modules[slot].code}</b>
               <span>{modules[slot].tag}</span>
             </div>
-          </Html>
-          <Html position={[0, 1.1, 0.1]} center style={{ pointerEvents: 'none' }}>
-            <span className="module-slot">SLOT 0{slot}</span>
           </Html>
         </group>
       ))}
@@ -457,8 +499,8 @@ export default function PlcChassis3D({
           key={'wire-' + pin.id}
           pin={pin}
           index={i}
-          start={[x, 5.42, 0.72]}
-          end={[i % 2 ? 3.35 : -3.35, 2.3 + i * 0.06, 0.15]}
+          start={[x, 3.68, 0.02]}
+          end={[i % 2 ? 3.45 : -3.45, 0.55 + i * 0.04, -0.18]}
           frame={frame}
         />
       ))}

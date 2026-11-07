@@ -19,7 +19,7 @@ from backend.agents.orchestrator import Orchestrator
 from backend.db.store import Store
 from backend.evolution_engine.engine import EvolutionEngine
 from backend.llm_router.router import Router
-from backend.physics_sim.engine import DualTwin
+from backend.physics_sim.engine import DualTwin, list_scenarios
 from backend.prober.probe import probe, equivalence
 from backend.rea_archaeologist.inspect import inspect
 from backend.rea_archaeologist.build import ROOT, build
@@ -36,6 +36,10 @@ class SabotageRequest(BaseModel):
     thermal_spike: bool=False
     auto_evolve: bool=False
     reset_skill: bool=False
+class SimControlRequest(BaseModel):
+    action: str | None=None
+    scenario_id: str | None=None
+    thermal_spike: bool=False
 
 class Workbench:
     def __init__(self):
@@ -246,9 +250,10 @@ class Workbench:
         loop=asyncio.get_running_loop(); deadline=loop.time(); batch=[]; last_flush=loop.time()
         while True:
             deadline += .01
-            frame=self.sim.step()
-            batch.extend(self.rows(frame))
-            if loop.time()-last_flush >= 1.0:
+            if not self.sim.paused:
+                frame=self.sim.step()
+                batch.extend(self.rows(frame))
+            if batch and loop.time()-last_flush >= 1.0:
                 pending,batch=batch,[]
                 try:self.telemetry_queue.put_nowait(pending)
                 except asyncio.QueueFull:
@@ -311,6 +316,35 @@ def health():
 @app.post('/api/archaeology/inspect')
 async def archaeology(request:InspectionRequest):
     return await wb().orchestrator.request('archaeologist',request.model_dump())
+
+@app.get('/api/scenarios')
+def scenarios():
+    return {'scenarios':list_scenarios()}
+
+@app.post('/api/sim/control')
+async def sim_control(request:SimControlRequest):
+    state=wb()
+    if request.scenario_id:
+        state.sim.set_scenario(request.scenario_id)
+        state.sim.set_paused(False)
+        state.run_id=str(uuid.uuid4())
+    if request.action=='pause':
+        state.sim.set_paused(True)
+    elif request.action=='play':
+        state.sim.set_paused(False)
+    elif request.action=='reset':
+        state.sim.set_scenario('nominal')
+        state.sim.set_paused(False)
+        state.run_id=str(uuid.uuid4())
+    elif request.action=='replay':
+        state.sim.set_scenario(state.sim.scenario_id)
+        state.sim.set_paused(False)
+        state.run_id=str(uuid.uuid4())
+    if request.thermal_spike:
+        with state.sim.lock:
+            state.sim.left.temperature=state.sim.right.temperature=89.5
+            state.sim.left.sabotage=state.sim.right.sabotage=True
+    return {'snapshot':state.frame()}
 
 @app.post('/api/sabotage')
 async def sabotage(request:SabotageRequest):

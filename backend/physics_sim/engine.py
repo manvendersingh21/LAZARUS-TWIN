@@ -78,10 +78,42 @@ class Arm:
         return self.snapshot()
 
     def snapshot(self):
-        return {"target_angle":self.target, "angle":self.angle, "velocity":self.velocity,
+        return {"target_angle":self.target, "angle":self.angle,
+                "observed_angle":self.delay[0] if self.delay else self.angle,
+                "velocity":self.velocity,
                 "temperature":self.temperature, "pwm":self.pwm, "estop":self.estop,
                 "cooling":self.cooling, "tracking_error_deg":self.target-self.angle,
                 "sabotage_active":self.sabotage}
+
+
+def scenario_catalog():
+    from .worlds import WORLDS
+    return {
+        "nominal": (World("Nominal", efficiency=1.0, gravity=8.0, inertia=2.0, friction=1.2, sensor_lag_s=0.0, initial_temp=30.0), False),
+        "payload_mass": (WORLDS[0], True),
+        "low_friction": (WORLDS[1], True),
+        "high_inertia_sensor_lag": (WORLDS[2], True),
+        "thermal_stress": (WORLDS[3], True),
+        "combined_perturbations": (WORLDS[4], True),
+    }
+
+
+def list_scenarios():
+    return [
+        {
+            "id": sid,
+            "name": w.name,
+            "sabotage": sab,
+            "efficiency": w.efficiency if sab else 1.0,
+            "gravity": w.gravity if sab else 8.0,
+            "inertia": w.inertia,
+            "friction": w.friction,
+            "sensor_lag_s": w.sensor_lag_s,
+            "initial_temp": w.initial_temp,
+            "dt": DT,
+        }
+        for sid, (w, sab) in scenario_catalog().items()
+    ]
 
 
 class DualTwin:
@@ -95,6 +127,8 @@ class DualTwin:
 
     def _reset(self):
         self.tick=0
+        self.scenario_id="nominal"
+        self.paused=False
         self.left=Arm(self.legacy.step)
         self.right=Arm(self.skill.step)
         self.left.sabotage=self.right.sabotage=False
@@ -106,7 +140,31 @@ class DualTwin:
     def set_fault(self, enabled, thermal_spike=False):
         with self.lock:
             self.left.sabotage=self.right.sabotage=bool(enabled)
+            self.scenario_id="payload_mass" if enabled else "nominal"
             if thermal_spike:self.left.temperature=self.right.temperature=89.5
+        return self.snapshot()
+
+    def set_scenario(self, scenario_id: str, reset_state: bool = True):
+        catalog=scenario_catalog()
+        if scenario_id not in catalog:
+            raise ValueError(f"Unknown scenario_id: {scenario_id}")
+        world,sab=catalog[scenario_id]
+        with self.lock:
+            self.scenario_id=scenario_id
+            if reset_state:
+                self.tick=0
+                self.left=Arm(self.legacy.step,world=world)
+                self.right=Arm(self.skill.step,world=world)
+                self.right.state={}
+            else:
+                self.left.world=world
+                self.right.world=world
+            self.left.sabotage=self.right.sabotage=sab
+        return self.snapshot()
+
+    def set_paused(self, paused: bool):
+        with self.lock:
+            self.paused=bool(paused)
         return self.snapshot()
 
     def adopt(self,path):
@@ -143,5 +201,20 @@ class DualTwin:
 
     def snapshot(self):
         with self.lock:
+            w=self.left.world
+            sab=self.left.sabotage
+            sid=getattr(self,"scenario_id","nominal")
+            world_info={
+                "id":sid,
+                "name":"Nominal" if not sab and w.name=="live" else w.name,
+                "efficiency":w.efficiency if sab else 1.0,
+                "gravity":w.gravity if sab else 8.0,
+                "inertia":w.inertia,
+                "friction":w.friction,
+                "sensor_lag_s":w.sensor_lag_s,
+                "initial_temp":w.initial_temp,
+                "dt":DT,
+            }
             return {"tick":self.tick,"active_skill_version":getattr(self.skill,"VERSION","unknown"),
+                    "scenario_id":sid,"paused":getattr(self,"paused",False),"world":world_info,
                     "left_legacy":self.left.snapshot(),"right_evolved":self.right.snapshot()}

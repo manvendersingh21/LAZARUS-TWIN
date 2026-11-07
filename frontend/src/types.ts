@@ -28,6 +28,25 @@ export interface EvmProbe {
   trace_steps?: number
 }
 
+export interface PlcPhysicsWorldScore {
+  world?: string
+  passed?: boolean
+  steady_state_error_deg?: number
+  peak_overshoot_deg?: number
+  peak_velocity_deg_s?: number
+  estop?: number
+}
+
+export interface PlcPhysicsEngineResult {
+  ticks_per_episode?: number
+  nominal_steady_error_deg?: number
+  nominal_peak_overshoot_deg?: number
+  nominal_peak_velocity_deg_s?: number
+  held_out_worlds_passed?: number
+  held_out_worlds_total?: number
+  worlds?: PlcPhysicsWorldScore[]
+}
+
 export interface OpenPlcRuntimeTarget {
   evidence_id?: string
   sha256?: string
@@ -51,12 +70,16 @@ export interface FulmaticCortexM4Target {
 }
 
 export interface FulmaticArmProbe {
+  target?: string
+  sha256?: string
   passed?: boolean
   cpu_model?: string
   function_tested?: string
   recovered_min_velocity?: number
   recovered_max_velocity?: number
+  samples?: Record<string, number>
   test_vectors?: Array<{ req: number; out: number }>
+  physics_engine?: PlcPhysicsEngineResult
 }
 
 export interface PlcTargets {
@@ -65,15 +88,20 @@ export interface PlcTargets {
 }
 
 export interface OpenPlcFfiProbe {
+  target?: string
+  sha256?: string
   passed?: boolean
   library_sha256?: string
   capacities?: Record<string, number>
   located_globals_matched?: number
   located_globals_total?: number
+  located_globals_indices?: number[]
   zero_outputs_verified?: boolean
   before_zero?: Record<string, number>
   after_zero?: Record<string, number>
+  after_zero_outputs?: Record<string, number>
   input_preserved?: number
+  physics_engine?: PlcPhysicsEngineResult
 }
 
 export interface BlindRecovery {
@@ -183,6 +211,38 @@ export interface Twin {
   sabotage_active?: boolean
 }
 
+export type ScenarioConfig = {
+  id: string
+  name: string
+  efficiency: number
+  gravity: number
+  inertia: number
+  friction: number
+  sensor_lag_s: number
+  initial_temp: number
+  dt: number
+}
+
+export type RecordedSample = {
+  tick: number
+  time_s: number
+  target_deg: number
+  left_angle_deg: number
+  right_angle_deg: number
+  left_err_deg: number
+  right_err_deg: number
+  left_vel_deg_s: number
+  right_vel_deg_s: number
+  left_pwm: number
+  right_pwm: number
+  left_temp_c: number
+  right_temp_c: number
+  left_estop: number
+  right_estop: number
+  left_cooling: number
+  right_cooling: number
+}
+
 export interface VerificationEvent {
   type?: string
   job_id?: string
@@ -196,6 +256,9 @@ export interface Frame {
   left_legacy?: Twin
   right_evolved?: Twin
   sabotage_active?: boolean
+  scenario_id?: string
+  paused?: boolean
+  world?: ScenarioConfig
   event?: VerificationEvent
 }
 
@@ -234,6 +297,26 @@ export interface MutationAudit {
   signature_hmac_sha256?: string
 }
 
+export type EsGeneration = {
+  generation: number
+  best_loss: number
+  genome: { kp: number; kd: number; ki: number; k_ff: number; alpha_v: number; i_clamp: number }
+}
+
+export type EsSearch = {
+  algorithm?: string
+  generations?: number
+  population_size?: number
+  episodes_simulated?: number
+  steps_per_episode?: number
+  stage1_single_world?: { kp: number; kd: number }
+  initial_v1_genome?: Record<string, number>
+  converged_v3_genome?: Record<string, number>
+  initial_loss?: number
+  final_loss?: number
+  history?: EsGeneration[]
+}
+
 export interface EvolutionStep {
   version?: string
   skill_version?: string
@@ -241,11 +324,13 @@ export interface EvolutionStep {
   verdict?: string
   result?: string
   origin?: string
+  origin_label?: string
   commit?: string
   commit_hash?: string
   revert_commit?: string
   reason?: string
   message?: string
+  genome?: Record<string, number> | null
   training?: { steady_state_error_deg?: number; peak_overshoot_deg?: number; passed?: boolean }
   worlds?: WorldScore[]
   audit?: MutationAudit
@@ -257,6 +342,9 @@ export interface Evolution {
   active_skill_version?: string
   active_commit?: string
   revert_commit?: string
+  active_origin?: string
+  active_origin_label?: string
+  es_search?: EsSearch
   memory_recall?: {
     status?: string
     hits?: Array<{ pattern_id?: string; recommended_skill_template?: string; score?: number }>
