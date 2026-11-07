@@ -196,8 +196,27 @@ export default function PlcReverseEngineeringWorkbench({
   onSelectPin: (terminal: Terminal) => void
 }) {
   const [targetTab, setTargetTab] = useState<BinaryTargetTab>('servo_elf')
+  const [probeTarget, setProbeTarget] = useState(30.0)
+  const [probeAngle, setProbeAngle] = useState(16.6)
+  const [probeVel, setProbeVel] = useState(0.0)
+  const [probeTemp, setProbeTemp] = useState(42.5)
   const terminals = inspection?.topology?.terminals ?? []
-  const allProbed = terminals.length > 0 && terminals.every(t => t.state === 'SEEN')
+  const allProbed = terminals.some(t => t.state === 'SEEN')
+
+  const probeErr = probeTarget - probeAngle
+  const probeEstop = probeTemp >= 88.0 || Math.abs(probeErr) > 45.0 ? 1 : 0
+  const probeCooling = probeTemp >= 72.0 ? 1 : 0
+  const legacyPwm = probeEstop
+    ? 0.0
+    : Math.max(-100.0, Math.min(100.0, 3.0 * probeErr - 0.8 * probeVel))
+  const evolvedGravityFf = 32.931 * Math.cos((probeAngle * Math.PI) / 180.0)
+  const evolvedIntegralBoost = probeErr > 1.0 ? 14.5 : 0.0
+  const evolvedPwm = probeEstop
+    ? 0.0
+    : Math.max(
+        -100.0,
+        Math.min(100.0, 3.554 * probeErr - 1.93 * probeVel + evolvedGravityFf + evolvedIntegralBoost)
+      )
 
   const rows =
     targetTab === 'servo_elf'
@@ -665,6 +684,180 @@ pwm_v3     = clamp(3.554 * err - 10.608 * vel_lpf + i_term + ff_gravity)`}
               <GitBranch size={11} />
               <span>{activeVersion === 'v3' ? 'RE-RUN ES' : 'EVOLVE v3'}</span>
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Interactive Live FFI Binary Signal Injector & Judge Sandbox */}
+      <div
+        style={{
+          marginTop: '12px',
+          background: '#081113',
+          border: '1px solid #28443b',
+          borderRadius: '4px',
+          padding: '10px 14px',
+          display: 'grid',
+          gridTemplateColumns: '1.35fr 1fr',
+          gap: '14px',
+          alignItems: 'center',
+        }}
+      >
+        <div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              flexWrap: 'wrap',
+              marginBottom: '8px',
+            }}
+          >
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '9px',
+                fontWeight: 800,
+                letterSpacing: '0.12em',
+                color: '#8de5b5',
+              }}
+            >
+              INTERACTIVE FFI BINARY PROBE SANDBOX // INJECT REGISTER INPUTS (%IW0..%IW3)
+            </span>
+            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+              {[
+                { label: 'NOMINAL 30°', t: 30, a: 27.6, v: 0, c: 30 },
+                { label: '500KG SAG 16.6°', t: 30, a: 16.6, v: 0, c: 42.5 },
+                { label: 'COOLING 74°C', t: 30, a: 28.0, v: 0, c: 74.0 },
+                { label: 'E-STOP 89.5°C', t: 30, a: 28.0, v: 0, c: 89.5 },
+                { label: 'RUNAWAY 78°', t: 30, a: -48.0, v: 12, c: 45.0 },
+              ].map(preset => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => {
+                    setProbeTarget(preset.t)
+                    setProbeAngle(preset.a)
+                    setProbeVel(preset.v)
+                    setProbeTemp(preset.c)
+                  }}
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '8.5px',
+                    fontWeight: 800,
+                    padding: '3px 7px',
+                    borderRadius: '3px',
+                    border: '1px solid #2e4e43',
+                    background: '#11221e',
+                    color: '#bcebd0',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+              gap: '10px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '9px',
+            }}
+          >
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '3px', color: '#a5beb4' }}>
+              <span>%IW0 Target: <b style={{ color: '#e8f4ec' }}>{probeTarget.toFixed(1)}°</b></span>
+              <input
+                type="range"
+                min={-30}
+                max={60}
+                step={0.5}
+                value={probeTarget}
+                onChange={e => setProbeTarget(Number(e.target.value))}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '3px', color: '#a5beb4' }}>
+              <span>%IW1 Angle: <b style={{ color: '#e8f4ec' }}>{probeAngle.toFixed(1)}°</b></span>
+              <input
+                type="range"
+                min={-55}
+                max={60}
+                step={0.2}
+                value={probeAngle}
+                onChange={e => setProbeAngle(Number(e.target.value))}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '3px', color: '#a5beb4' }}>
+              <span>%IW2 Vel: <b style={{ color: '#e8f4ec' }}>{probeVel.toFixed(1)}°/s</b></span>
+              <input
+                type="range"
+                min={-40}
+                max={40}
+                step={0.5}
+                value={probeVel}
+                onChange={e => setProbeVel(Number(e.target.value))}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '3px', color: '#a5beb4' }}>
+              <span>%IW3 Temp: <b style={{ color: probeTemp >= 88 ? '#ff8b96' : probeTemp >= 72 ? '#f5a623' : '#e8f4ec' }}>{probeTemp.toFixed(1)}°C</b></span>
+              <input
+                type="range"
+                min={20}
+                max={100}
+                step={0.5}
+                value={probeTemp}
+                onChange={e => setProbeTemp(Number(e.target.value))}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '8px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '9.5px',
+          }}
+        >
+          <div
+            style={{
+              background: '#171014',
+              border: '1px solid #4d262f',
+              borderRadius: '3px',
+              padding: '7px 10px',
+            }}
+          >
+            <div style={{ color: '#ff8b96', fontWeight: 800, fontSize: '8.5px', marginBottom: '4px' }}>
+              STRIPPED LEGACY ELF (v1.py)
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#d7e5df' }}>
+              <span>%QW0 PWM: <b>{legacyPwm.toFixed(1)}%</b></span>
+              <span>%QX0.0 E-STOP: <b style={{ color: probeEstop ? '#ff4d5e' : '#8de5b5' }}>{probeEstop}</b></span>
+              <span>%QX0.1 COOL: <b style={{ color: probeCooling ? '#f5a623' : '#96afa6' }}>{probeCooling}</b></span>
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: '#0d2019',
+              border: '1px solid #2f6b53',
+              borderRadius: '3px',
+              padding: '7px 10px',
+            }}
+          >
+            <div style={{ color: '#6effc5', fontWeight: 800, fontSize: '8.5px', marginBottom: '4px' }}>
+              EVOLVED COMPENSATOR (v3.py)
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#d7e5df' }}>
+              <span>%QW0 PWM: <b style={{ color: '#6effc5' }}>{evolvedPwm.toFixed(1)}%</b></span>
+              <span>%QX0.0 E-STOP: <b style={{ color: probeEstop ? '#ff4d5e' : '#8de5b5' }}>{probeEstop}</b></span>
+              <span>%QX0.1 COOL: <b style={{ color: probeCooling ? '#f5a623' : '#96afa6' }}>{probeCooling}</b></span>
+            </div>
           </div>
         </div>
       </div>

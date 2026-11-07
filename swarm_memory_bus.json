@@ -1,19 +1,19 @@
 {
   "bus_id": "lazarus-twin-swarm-bus-v1",
   "protocol": "Fetch.ai uAgents + MongoDB Airgapped Verification Bus + Shared Swarm Memory",
-  "updated_at": "2026-11-07T23:31:30Z",
+  "updated_at": "2026-11-07T23:53:07Z",
   "agents": [
     {
       "agent_id": "agent://archaeologist-prober-01",
       "name": "ArchaeologistProberAgent",
       "role": "ELF Disassembly (morluto/rea) & 30-Step FFI Boundary Bisection",
       "status": "ONLINE",
-      "last_heartbeat": "2026-11-07T23:31:30Z",
+      "last_heartbeat": "2026-11-07T23:53:07Z",
       "metrics": {
         "binaries_probed": 3,
         "c_vectors_verified": "1000/1000 (100.0%)",
         "anvil_evm_vectors": "262/262 (100.0%)",
-        "bisection_residual_c": 1.86e-8
+        "bisection_residual_c": 1.86e-08
       }
     },
     {
@@ -21,7 +21,7 @@
       "name": "PlcFirmwareReconstructorAgent",
       "role": "OpenPLC v4 IEC 61131-3 FFI & Fulmatic STM32F407 ARM Cortex-M4 Unicorn VFPv4 Prober",
       "status": "ONLINE",
-      "last_heartbeat": "2026-11-07T23:31:30Z",
+      "last_heartbeat": "2026-11-07T23:53:07Z",
       "metrics": {
         "openplc_located_globals": "7/7 (%IW0..%QX0.1)",
         "cortex_m4_thumb2_instr": 1102,
@@ -31,9 +31,9 @@
     {
       "agent_id": "agent://skill-architect-es-03",
       "name": "SkillArchitectAgent",
-      "role": "312-Episode (µ=4, λ=14) Evolutionary Strategy & Git Rollback/Promotion Controller",
+      "role": "312-Episode (\u00b5=4, \u03bb=14) Evolutionary Strategy & Git Rollback/Promotion Controller",
       "status": "ONLINE",
-      "last_heartbeat": "2026-11-07T23:31:30Z",
+      "last_heartbeat": "2026-11-07T23:51:53Z",
       "metrics": {
         "episodes_simulated": 312,
         "loss_reduction": "355.15 -> 2.77 (-99.2%)",
@@ -59,7 +59,7 @@
       "weight": "20%",
       "score_target": "10/10",
       "thesis": "$1.4T of global manufacturing runs on legacy stripped PLC binaries whose source code is lost. When motors degrade (-58% torque) or heavy loads (500kg) are added, legacy PD controllers sag and drop assembly-line parts.",
-      "demo_proof": "Live 3D Dual-Workcell Conveyor Arena showing Legacy Cell 01 sagging to 16.6° and dropping red crates into the reject chute while Evolved Cell 02 heals to 30.0° and passes 100% of crates."
+      "demo_proof": "Live 3D Dual-Workcell Conveyor Arena showing Legacy Cell 01 sagging to 16.6\u00b0 and dropping red crates into the reject chute while Evolved Cell 02 heals to 30.0\u00b0 and passes 100% of crates."
     },
     "technical_demo_35pct": {
       "weight": "35%",
@@ -76,11 +76,43 @@
     "implementation_difficulty_30pct": {
       "weight": "30%",
       "score_target": "10/10",
-      "thesis": "Probes 3 real compiled ELF binaries (stripped C servo plant, OpenPLC IEC 61131-3 runtime, STM32F407 ARM Cortex-M4 firmware in Unicorn VFPv4), runs 312 closed-loop physics episodes of (µ=4, λ=14) ES, verifies 262 Foundry Anvil EVM vectors, and kills 6 AST mutants in a Linux Landlock + seccomp sandbox.",
+      "thesis": "Probes 3 real compiled ELF binaries (stripped C servo plant, OpenPLC IEC 61131-3 runtime, STM32F407 ARM Cortex-M4 firmware in Unicorn VFPv4), runs 312 closed-loop physics episodes of (\u00b5=4, \u03bb=14) ES, verifies 262 Foundry Anvil EVM vectors, and kills 6 AST mutants in a Linux Landlock + seccomp sandbox.",
       "demo_proof": "Live PLC Reverse Engineering Workbench + 24/24 pytest suite + 1,000/1,000 C FFI vectors + 262/262 Anvil EVM vectors."
     }
   },
   "events": [
+    {
+      "id": "evt-87665",
+      "timestamp": "2026-11-07T23:53:07Z",
+      "agent": "PlcFirmwareReconstructorAgent",
+      "topic": "THERMAL_INTERLOCK_LATCHED",
+      "state": "SEEN",
+      "summary": "89.5\u00b0C thermal spike exceeded 88.0\u00b0C rodata threshold; %QX0.0 E-Stop latched & %QW0 cut to 0%."
+    },
+    {
+      "id": "evt-87389",
+      "timestamp": "2026-11-07T23:53:07Z",
+      "agent": "ArchaeologistProberAgent",
+      "topic": "FFI_BISECTION_CONVERGED",
+      "state": "SEEN",
+      "summary": "Probed 3 ELF binaries + 1,000/1,000 C FFI vectors + 262/262 Anvil EVM calls (88.0\u00b0C E-stop, 72.0\u00b0C cooling, \u00b145.0\u00b0 runaway)."
+    },
+    {
+      "id": "evt-13311",
+      "timestamp": "2026-11-07T23:51:53Z",
+      "agent": "SkillArchitectAgent",
+      "topic": "GIT_EVOLUTION_V3_PROMOTED",
+      "state": "SEEN",
+      "summary": "Stage-1 v2 git-reverted on Held-Out World 3 sensor lag (11.96\u00b0 ovr). Stage-2 (\u00b5=4, \u03bb=14) ES promoted v3 across 5/5 worlds."
+    },
+    {
+      "id": "evt-05406",
+      "timestamp": "2026-11-07T23:50:05Z",
+      "agent": "SkillArchitectAgent",
+      "topic": "GIT_EVOLUTION_V3_PROMOTED",
+      "state": "SEEN",
+      "summary": "Stage-1 v2 git-reverted on Held-Out World 3 sensor lag (11.96\u00b0 ovr). Stage-2 (\u00b5=4, \u03bb=14) ES promoted v3 across 5/5 worlds."
+    },
     {
       "id": "evt-001",
       "timestamp": "2026-11-07T23:31:30Z",
@@ -95,7 +127,7 @@
       "agent": "PlcFirmwareReconstructorAgent",
       "topic": "FFI_BISECTION_CONVERGED",
       "state": "SEEN",
-      "summary": "30-step FFI boundary bisection recovered 88.0°C thermal E-stop (±1.86e-8°C), 72.0°C cooling relay, ±45.0° runaway guard, and kp=3.0, kd=-0.8 PD gains across 1,000/1,000 vectors."
+      "summary": "30-step FFI boundary bisection recovered 88.0\u00b0C thermal E-stop (\u00b11.86e-8\u00b0C), 72.0\u00b0C cooling relay, \u00b145.0\u00b0 runaway guard, and kp=3.0, kd=-0.8 PD gains across 1,000/1,000 vectors."
     },
     {
       "id": "evt-003",
@@ -103,7 +135,7 @@
       "agent": "SkillArchitectAgent",
       "topic": "GIT_EVOLUTION_V3_PROMOTED",
       "state": "SEEN",
-      "summary": "Stage-1 v2 reverted via git revert after failing Held-Out World 3 (0.45s sensor lag, 11.96° overshoot). Stage-2 (µ=4, λ=14) ES converged over 312 episodes (loss 355.15 -> 2.77) and promoted v3 across 5/5 Held-Out Worlds."
+      "summary": "Stage-1 v2 reverted via git revert after failing Held-Out World 3 (0.45s sensor lag, 11.96\u00b0 overshoot). Stage-2 (\u00b5=4, \u03bb=14) ES converged over 312 episodes (loss 355.15 -> 2.77) and promoted v3 across 5/5 Held-Out Worlds."
     },
     {
       "id": "evt-004",

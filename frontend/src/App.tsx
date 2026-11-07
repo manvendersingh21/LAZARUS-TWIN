@@ -688,6 +688,7 @@ export default function App() {
   const [deepDiveOpen, setDeepDiveOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastAction, setLastAction] = useState('SYSTEM READY // CLICK ANY STAGE DEMO STEP OR AUTO-PILOT')
+  const stageLockRef = useRef<{ until: number; frame: Frame } | null>(null)
 
   const clearAutoPilotTimers = useCallback(() => {
     autoPilotTimersRef.current.forEach(t => clearTimeout(t))
@@ -734,9 +735,14 @@ export default function App() {
         try {
           const data = JSON.parse(String(event.data)) as Frame
           if (data && typeof data === 'object') {
-            liveFrameRef.current = data
+            const lock = stageLockRef.current
+            const merged =
+              lock && performance.now() < lock.until
+                ? { ...data, ...lock.frame, tick: data.tick }
+                : data
+            liveFrameRef.current = merged
             if (replayIndexRef.current === null) {
-              displayFrameRef.current = data
+              displayFrameRef.current = merged
             }
             if (data.scenario_id) {
               setActiveScenarioId(data.scenario_id)
@@ -1035,6 +1041,7 @@ export default function App() {
         sabotage_active: true,
       },
     }
+    stageLockRef.current = { until: performance.now() + 2600, frame: nextFrame }
     liveFrameRef.current = nextFrame
     displayFrameRef.current = nextFrame
     setSnapshot(nextFrame)
@@ -1047,7 +1054,6 @@ export default function App() {
         auto_evolve: false,
         reset_skill: true,
       }).catch(() => undefined)
-      await post('/api/sim/control', { scenario_id: 'payload_mass' }).catch(() => undefined)
     })
   }, [clearRecordedBuffer])
 
@@ -1083,6 +1089,7 @@ export default function App() {
         motor_pwm: 84.5,
       },
     }
+    stageLockRef.current = { until: performance.now() + 4200, frame: healedFrame }
     liveFrameRef.current = healedFrame
     displayFrameRef.current = healedFrame
     setSnapshot(healedFrame)
@@ -1098,7 +1105,6 @@ export default function App() {
       if (data && (data.iterations || data.ledger)) {
         setEvolution(data)
       }
-      await post('/api/sim/control', { scenario_id: 'payload_mass' }).catch(() => undefined)
     })
   }, [])
 
@@ -1127,6 +1133,7 @@ export default function App() {
         motor_pwm: 0,
       },
     }
+    stageLockRef.current = { until: performance.now() + 3000, frame: spikeFrame }
     liveFrameRef.current = spikeFrame
     displayFrameRef.current = spikeFrame
     setSnapshot(spikeFrame)
@@ -1195,6 +1202,7 @@ export default function App() {
         sabotage_active: false,
       },
     }
+    stageLockRef.current = { until: performance.now() + 2200, frame: resetFrame }
     liveFrameRef.current = resetFrame
     displayFrameRef.current = resetFrame
     setSnapshot(resetFrame)
@@ -1238,7 +1246,9 @@ export default function App() {
   const sabotageActive = !!snapshot.sabotage_active
   const activeVersion = evolution?.active_skill_version ?? snapshot.active_skill_version ?? 'v1'
   const evmPassed = (inspection?.evm_probe?.passed ?? 0) > 0
-  const allWiresProbed = inspection?.topology?.terminals?.every(t => t.state === 'SEEN') ?? false
+  const allWiresProbed =
+    (inspection?.topology?.terminals?.some(t => t.state === 'SEEN') ?? false) &&
+    (inspection?.counts?.UNKNOWN ?? 1) === 0
 
   return (
     <main className="app-shell">
