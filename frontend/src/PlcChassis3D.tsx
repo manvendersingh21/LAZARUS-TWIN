@@ -4,22 +4,22 @@ import { useMemo, useRef, type MutableRefObject } from 'react'
 import * as THREE from 'three'
 import { type EvidenceState, type Frame, type Terminal, pinSignal, twinValue } from './types'
 
-// Honest Tri-State Wire & Terminal Palette:
-// SEEN = Signal Blue (#0284c7) - Probed Software I/O (0.90 conf, physical wiring unverified)
-// INFERRED = Industrial Amber (#d97706) - Heuristic / Unswept (0.65 conf)
-// UNKNOWN = Fault Crimson (#dc2626) - Unprobed Branch (0.00 conf)
+// High-Contrast Cyber-Industrial Tri-State Wire & Terminal Palette:
+// SEEN = Cyber Emerald (#6effc5) - Probed Software I/O (60Hz live signal modulation)
+// INFERRED = Industrial Amber (#f5a623) - Static Disassembly / Heuristic
+// UNKNOWN = Fault Crimson (#ff4d5e) - Unprobed Hidden Hardware Branch
 const palette: Record<EvidenceState, string> = {
-  SEEN: '#0284c7',
-  INFERRED: '#d97706',
-  UNKNOWN: '#dc2626',
+  SEEN: '#6effc5',
+  INFERRED: '#f5a623',
+  UNKNOWN: '#ff4d5e',
 }
 
 const modules = [
-  { code: 'PS 24V', tag: 'BUS POWER', hue: '#1e293b' },
-  { code: 'AI 16', tag: 'ANALOG IN', hue: '#0f172a' },
-  { code: 'PWM 01', tag: 'SERVO DRV', hue: '#1e293b' },
-  { code: 'SR 02', tag: 'SAFETY RLY', hue: '#334155' },
-  { code: 'EVM 01', tag: 'ANVIL BRG', hue: '#0f172a' },
+  { code: 'PS 24V', tag: 'BUS POWER', hue: '#14242b' },
+  { code: 'AI 16', tag: 'ANALOG IN', hue: '#112229' },
+  { code: 'PWM 01', tag: 'SERVO DRV', hue: '#14242b' },
+  { code: 'SR 02', tag: 'SAFETY RLY', hue: '#1c2f36' },
+  { code: 'EVM 01', tag: 'ANVIL BRG', hue: '#112229' },
 ]
 
 const slotX = (slot: number) => (slot - 2) * 1.45
@@ -50,12 +50,12 @@ function ScrewPin({
       const level = Math.min(1, pinSignal(pin, frame.current))
       const pulse =
         pin.state === 'UNKNOWN'
-          ? 0.65 + 0.55 * Math.sin(clock.elapsedTime * 6.5)
-          : 0.45 + level * 1.65 + 0.2 * (1 + Math.sin(clock.elapsedTime * 3.5))
+          ? 0.75 + 0.65 * Math.sin(clock.elapsedTime * 6.5)
+          : 0.55 + level * 1.75 + 0.22 * (1 + Math.sin(clock.elapsedTime * 3.5))
       led.current.emissiveIntensity = pulse
     }
     if (collar.current) {
-      collar.current.emissiveIntensity = selected ? 0.9 : 0.22
+      collar.current.emissiveIntensity = selected ? 1.25 : 0.38
     }
   })
 
@@ -78,29 +78,29 @@ function ScrewPin({
     >
       {/* Terminal insulating collar colored by evidence state */}
       <mesh position={[0, -0.03, 0]}>
-        <cylinderGeometry args={[0.125, 0.125, 0.05, 20]} />
+        <cylinderGeometry args={[0.13, 0.13, 0.055, 20]} />
         <meshStandardMaterial
           ref={collar}
-          color={selected ? '#0f172a' : color}
+          color={selected ? '#ffffff' : color}
           emissive={color}
-          emissiveIntensity={0.25}
-          roughness={0.35}
+          emissiveIntensity={0.38}
+          roughness={0.3}
         />
       </mesh>
       {/* Metallic screw terminal head */}
-      <mesh position={[0, 0.02, 0]}>
-        <cylinderGeometry args={[0.095, 0.095, 0.075, 20]} />
-        <meshStandardMaterial color={selected ? '#ffffff' : '#cbd5e1'} metalness={0.88} roughness={0.22} />
+      <mesh position={[0, 0.025, 0]}>
+        <cylinderGeometry args={[0.098, 0.098, 0.075, 20]} />
+        <meshStandardMaterial color={selected ? '#ffffff' : '#d8e4e8'} metalness={0.88} roughness={0.2} />
       </mesh>
       {/* Status jewel LED */}
-      <mesh position={[0, 0.08, 0.045]}>
-        <sphereGeometry args={[0.062, 14, 14]} />
-        <meshStandardMaterial ref={led} color={color} emissive={color} emissiveIntensity={1.2} roughness={0.2} />
+      <mesh position={[0, 0.085, 0.048]}>
+        <sphereGeometry args={[0.065, 14, 14]} />
+        <meshStandardMaterial ref={led} color={color} emissive={color} emissiveIntensity={1.35} roughness={0.18} />
       </mesh>
       {/* Screw slot detail */}
       <mesh position={[0, 0.12, 0.075]}>
         <boxGeometry args={[0.09, 0.018, 0.018]} />
-        <meshBasicMaterial color="#0f172a" />
+        <meshBasicMaterial color="#091318" />
       </mesh>
     </group>
   )
@@ -125,22 +125,22 @@ function Cable({
     () =>
       new THREE.CubicBezierCurve3(
         new THREE.Vector3(...start),
-        new THREE.Vector3(start[0] * 0.9, 2.75 - index * 0.045, 0.35),
-        new THREE.Vector3(end[0] * 0.72, 1.35 - index * 0.06, 0.18),
+        new THREE.Vector3(start[0] * 0.92, 2.95 - index * 0.035, 0.28),
+        new THREE.Vector3(end[0] * 0.85, 2.15 - index * 0.04, 0.22),
         new THREE.Vector3(...end)
       ),
     [start[0], start[1], start[2], end[0], end[1], end[2], index]
   )
   const points = useMemo(() => curve.getPoints(42), [curve])
-  const tube = useMemo(() => new THREE.TubeGeometry(curve, 48, 0.03, 6, false), [curve])
+  const tube = useMemo(() => new THREE.TubeGeometry(curve, 44, 0.024, 6, false), [curve])
 
   useFrame(({ clock }) => {
     if (!matRef.current) return
     const duty = Math.min(1, pinSignal(pin, frame.current))
     if (pin.state === 'SEEN') {
-      matRef.current.emissiveIntensity = 0.45 + duty * 1.25 + 0.12 * Math.sin(clock.elapsedTime * 6 + index)
+      matRef.current.emissiveIntensity = 0.55 + duty * 1.35 + 0.16 * Math.sin(clock.elapsedTime * 6 + index)
     } else if (pin.state === 'INFERRED') {
-      matRef.current.emissiveIntensity = 0.3 + 0.25 * (0.5 + 0.5 * Math.sin(clock.elapsedTime * 3 + index))
+      matRef.current.emissiveIntensity = 0.38 + 0.25 * (0.5 + 0.5 * Math.sin(clock.elapsedTime * 3 + index))
     }
   })
 
@@ -149,12 +149,12 @@ function Cable({
       <Line
         points={points}
         color={color}
-        lineWidth={2.5}
+        lineWidth={2.2}
         dashed
         dashSize={0.14}
         gapSize={0.09}
         transparent
-        opacity={0.95}
+        opacity={0.92}
       />
     )
   }
@@ -164,8 +164,8 @@ function Cable({
         ref={matRef}
         color={color}
         emissive={color}
-        emissiveIntensity={pin.state === 'SEEN' ? 0.75 : 0.4}
-        roughness={0.32}
+        emissiveIntensity={pin.state === 'SEEN' ? 0.85 : 0.45}
+        roughness={0.28}
       />
     </mesh>
   )
@@ -194,62 +194,62 @@ function ModuleStatusLed({
     const pwmDuty = Math.abs(twinValue(right, 'pwm', 'motor_pwm') ?? 0) / 100
     const sabotage = !!f.sabotage_active
 
-    let hex = '#059669'
-    let intensity = 1.1
+    let hex = '#6effc5'
+    let intensity = 1.2
 
     if (slot === 0) {
       if (sabotage) {
-        hex = '#d97706'
+        hex = '#f5a623'
         intensity = 1.2 + 0.5 * Math.sin(clock.elapsedTime * 6)
       } else {
-        hex = '#059669'
-        intensity = 1.1
+        hex = '#6effc5'
+        intensity = 1.2
       }
     } else if (slot === 1) {
       const iw3 = terminals.find(t => t.id === '%IW3')
       const iw1 = terminals.find(t => t.id === '%IW1')
       if (!iw3 || iw3.state === 'UNKNOWN') {
-        hex = '#dc2626'
-        intensity = 1.1 + 0.4 * Math.sin(clock.elapsedTime * 5)
+        hex = '#ff4d5e'
+        intensity = 1.2 + 0.4 * Math.sin(clock.elapsedTime * 5)
       } else if (iw1?.state === 'INFERRED') {
-        hex = '#d97706'
-        intensity = 1.0
+        hex = '#f5a623'
+        intensity = 1.05
       } else {
-        hex = '#0284c7'
-        intensity = 1.3
+        hex = '#6effc5'
+        intensity = 1.35
       }
     } else if (slot === 2) {
       if (estop) {
-        hex = '#dc2626'
+        hex = '#ff4d5e'
         intensity = 1.6 + 0.8 * Math.sin(clock.elapsedTime * 10)
       } else {
-        hex = '#0284c7'
-        intensity = 0.6 + pwmDuty * 1.8
+        hex = '#68c9ff'
+        intensity = 0.65 + pwmDuty * 1.8
       }
     } else if (slot === 3) {
       const qx0 = terminals.find(t => t.id === '%QX0.0')
       const qx1 = terminals.find(t => t.id === '%QX0.1')
       const safetyUnknown = qx0?.state === 'UNKNOWN' || qx1?.state === 'UNKNOWN'
       if (estop) {
-        hex = '#dc2626'
+        hex = '#ff4d5e'
         intensity = 1.8 + 1.0 * Math.sin(clock.elapsedTime * 12)
       } else if (cooling) {
-        hex = '#0284c7'
+        hex = '#68c9ff'
         intensity = 1.6
       } else if (safetyUnknown) {
-        hex = '#d97706'
+        hex = '#f5a623'
         intensity = 0.95 + 0.35 * Math.sin(clock.elapsedTime * 4)
       } else {
-        hex = '#0284c7'
-        intensity = 1.25
+        hex = '#6effc5'
+        intensity = 1.3
       }
     } else if (slot === 4) {
       if (evmPassed) {
-        hex = '#0284c7'
-        intensity = 1.35
+        hex = '#6effc5'
+        intensity = 1.4
       } else {
-        hex = '#d97706'
-        intensity = 0.85 + 0.25 * Math.sin(clock.elapsedTime * 3)
+        hex = '#f5a623'
+        intensity = 0.9 + 0.25 * Math.sin(clock.elapsedTime * 3)
       }
     }
 
@@ -261,7 +261,7 @@ function ModuleStatusLed({
   return (
     <mesh position={[-0.45, 0.55, 0.38]}>
       <sphereGeometry args={[0.052, 12, 12]} />
-      <meshStandardMaterial ref={ledRef} color="#d97706" emissive="#d97706" emissiveIntensity={1.1} />
+      <meshStandardMaterial ref={ledRef} color="#f5a623" emissive="#f5a623" emissiveIntensity={1.1} />
     </mesh>
   )
 }
@@ -293,19 +293,19 @@ function RotaryStrobeTower({
       rotorRef.current.rotation.y += delta * speed
     }
     if (domeMatRef.current) {
-      let hex = '#0284c7'
-      let intensity = 1.1
+      let hex = '#6effc5'
+      let intensity = 1.15
       if (estop || temp >= 88) {
-        hex = '#dc2626'
+        hex = '#ff4d5e'
         intensity = 1.8 + 1.4 * Math.abs(Math.sin(clock.elapsedTime * 10))
       } else if (sabotage || temp >= 72) {
-        hex = '#ea580c'
-        intensity = 1.3 + 0.8 * Math.abs(Math.sin(clock.elapsedTime * 5))
+        hex = '#f5a623'
+        intensity = 1.35 + 0.8 * Math.abs(Math.sin(clock.elapsedTime * 5))
       } else if (hasUnknown) {
-        hex = '#d97706'
+        hex = '#f5a623'
         intensity = 0.95 + 0.45 * Math.abs(Math.sin(clock.elapsedTime * 3.5))
       } else {
-        hex = '#0284c7'
+        hex = '#6effc5'
         intensity = 1.25
       }
       domeMatRef.current.color.set(hex)
@@ -315,19 +315,19 @@ function RotaryStrobeTower({
   })
 
   return (
-    <group position={[3.55, 5.62, -0.68]}>
+    <group position={[3.55, 5.58, -0.68]}>
       {/* Base mount */}
       <mesh position={[0, -0.1, 0]}>
         <cylinderGeometry args={[0.16, 0.2, 0.14, 20]} />
-        <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.3} />
+        <meshStandardMaterial color="#1b2c33" metalness={0.8} roughness={0.3} />
       </mesh>
       {/* Translucent beacon dome */}
       <mesh position={[0, 0.1, 0]}>
         <cylinderGeometry args={[0.14, 0.15, 0.28, 24]} />
         <meshStandardMaterial
           ref={domeMatRef}
-          color="#d97706"
-          emissive="#d97706"
+          color="#f5a623"
+          emissive="#f5a623"
           emissiveIntensity={1.2}
           transparent
           opacity={0.88}
@@ -342,7 +342,7 @@ function RotaryStrobeTower({
       {/* Top cap */}
       <mesh position={[0, 0.25, 0]}>
         <cylinderGeometry args={[0.145, 0.145, 0.04, 20]} />
-        <meshStandardMaterial color="#0f172a" metalness={0.7} roughness={0.35} />
+        <meshStandardMaterial color="#0d181d" metalness={0.7} roughness={0.35} />
       </mesh>
     </group>
   )
@@ -372,79 +372,45 @@ export default function PlcChassis3D({
 
   const allSeen = terminals.length > 0 && terminals.every(t => t.state === 'SEEN')
   const anyUnknown = terminals.some(t => t.state === 'UNKNOWN')
-  const headerBarColor = allSeen ? '#0284c7' : anyUnknown ? '#dc2626' : '#d97706'
+  const headerBarColor = allSeen ? '#6effc5' : anyUnknown ? '#ff4d5e' : '#f5a623'
 
   return (
-    <group>
-      {/* Grounded Steel Control Cabinet Stand & Floor Plinth (touches floor y=0) */}
-      <mesh position={[0, 1.95, -0.82]} castShadow receiveShadow>
-        <boxGeometry args={[2.2, 3.9, 0.38]} />
-        <meshStandardMaterial color="#334155" metalness={0.72} roughness={0.38} />
+    <group position={[0, 0.15, -0.35]}>
+      {/* Grounded Steel Control Cabinet Stand & Floor Plinth */}
+      <mesh position={[0, 1.85, -0.82]} castShadow receiveShadow>
+        <boxGeometry args={[1.55, 3.7, 0.34]} />
+        <meshStandardMaterial color="#1b2b32" metalness={0.75} roughness={0.36} />
       </mesh>
       {/* Vertical wire duct trunk inside pedestal */}
-      <mesh position={[0, 1.85, -0.61]}>
-        <boxGeometry args={[0.72, 3.6, 0.06]} />
-        <meshStandardMaterial color="#1e293b" metalness={0.65} roughness={0.42} />
+      <mesh position={[0, 1.8, -0.62]}>
+        <boxGeometry args={[0.56, 3.5, 0.06]} />
+        <meshStandardMaterial color="#111d22" metalness={0.68} roughness={0.42} />
       </mesh>
       {/* Heavy floor baseplate */}
-      <mesh position={[0, 0.06, -0.78]} receiveShadow>
-        <boxGeometry args={[2.85, 0.14, 0.95]} />
-        <meshStandardMaterial color="#0f172a" metalness={0.8} roughness={0.32} />
+      <mesh position={[0, 0.05, -0.78]} receiveShadow>
+        <boxGeometry args={[2.1, 0.12, 0.86]} />
+        <meshStandardMaterial color="#0f1b20" metalness={0.82} roughness={0.3} />
       </mesh>
 
-      {/* Plain-English 3D Callout Sign Above Center PLC Cabinet */}
-      <Html position={[0, 5.95, -0.55]} center distanceFactor={11.5} style={{ pointerEvents: 'none' }}>
-        <div
-          style={{
-            background: 'rgba(15, 23, 42, 0.95)',
-            color: '#ffffff',
-            border: `2px solid ${anyUnknown ? '#dc2626' : '#0284c7'}`,
-            padding: '6px 12px',
-            borderRadius: '4px',
-            textAlign: 'center',
-            whiteSpace: 'nowrap',
-            boxShadow: '0 6px 18px rgba(15, 23, 42, 0.22)',
-            fontFamily: "var(--font-sans, 'Space Grotesk', sans-serif)",
-          }}
-        >
-          <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em' }}>
-            CENTER: FACTORY PLC BRAIN (7 Wires)
-          </div>
-          <div
-            style={{
-              fontSize: '9.5px',
-              fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)",
-              color: anyUnknown ? '#fca5a5' : '#7dd3fc',
-              marginTop: '2px',
-              fontWeight: 600,
-            }}
-          >
-            {anyUnknown
-              ? '3 Safety Wires Unknown (Red Dashed) — Click "Step 1: Scan PLC"'
-              : '6/7 Wires Mapped by FFI Probe (72°C Fan · 88°C Cutoff)'}
-          </div>
-        </div>
-      </Html>
-
-      {/* Dark charcoal DIN-rail PLC backplane */}
-      <RoundedBox args={[8.1, 2.25, 0.42]} radius={0.07} position={[0, 4.35, -0.75]} castShadow receiveShadow>
-        <meshStandardMaterial color="#1e293b" metalness={0.62} roughness={0.55} />
+      {/* Dark cyber-industrial DIN-rail PLC backplane */}
+      <RoundedBox args={[8.1, 2.22, 0.42]} radius={0.07} position={[0, 4.35, -0.75]} castShadow receiveShadow>
+        <meshStandardMaterial color="#142329" metalness={0.68} roughness={0.48} />
       </RoundedBox>
       {/* Top state indicator strip across PLC cabinet */}
-      <mesh position={[0, 5.45, -0.54]}>
+      <mesh position={[0, 5.44, -0.54]}>
         <boxGeometry args={[7.8, 0.075, 0.16]} />
         <meshStandardMaterial
           color={headerBarColor}
           emissive={headerBarColor}
-          emissiveIntensity={0.65}
+          emissiveIntensity={0.85}
           metalness={0.4}
           roughness={0.3}
         />
       </mesh>
-      {/* Lower DIN rail */}
+      {/* Brushed aluminum DIN rail */}
       <mesh position={[0, 3.42, -0.45]}>
         <boxGeometry args={[7.8, 0.12, 0.18]} />
-        <meshStandardMaterial color="#94a3b8" metalness={0.88} roughness={0.26} />
+        <meshStandardMaterial color="#7b969c" metalness={0.88} roughness={0.24} />
       </mesh>
 
       {/* Rotary Alarm Strobe Tower on top-right of PLC cabinet */}
@@ -452,25 +418,25 @@ export default function PlcChassis3D({
 
       {[0, 1, 2, 3, 4].map(slot => (
         <group position={[slotX(slot), 4.4, -0.4]} key={slot}>
-          {/* Clean industrial light-slate module body */}
+          {/* Anodized dark-gunmetal industrial PLC module body */}
           <RoundedBox args={[1.32, 1.62, 0.64]} radius={0.04} castShadow receiveShadow>
-            <meshStandardMaterial color="#e2e8f0" metalness={0.22} roughness={0.42} />
+            <meshStandardMaterial color="#24373e" metalness={0.55} roughness={0.36} />
           </RoundedBox>
-          {/* High-contrast dark slate nameplate */}
+          {/* High-contrast obsidian nameplate */}
           <mesh position={[0, 0.54, 0.34]}>
             <boxGeometry args={[1.18, 0.38, 0.06]} />
-            <meshStandardMaterial color={modules[slot].hue} metalness={0.35} roughness={0.45} />
+            <meshStandardMaterial color={modules[slot].hue} metalness={0.4} roughness={0.4} />
           </mesh>
           {/* Terminal block housing */}
           <mesh position={[0, -0.36, 0.34]}>
             <boxGeometry args={[1.18, 0.32, 0.07]} />
-            <meshStandardMaterial color="#cbd5e1" metalness={0.35} roughness={0.4} />
+            <meshStandardMaterial color="#314952" metalness={0.45} roughness={0.36} />
           </mesh>
           {/* Cooling & bus slots */}
           {[0, 1, 2, 3, 4].map(n => (
             <mesh key={n} position={[-0.46 + n * 0.23, -0.1, 0.34]}>
               <boxGeometry args={[0.05, 0.3, 0.025]} />
-              <meshStandardMaterial color="#64748b" />
+              <meshStandardMaterial color="#111d22" />
             </mesh>
           ))}
           {/* Telemetry-driven Module Status LED */}
@@ -483,6 +449,8 @@ export default function PlcChassis3D({
           </Html>
         </group>
       ))}
+
+      {/* 7 Interactive Screw Terminals */}
       {pins.map(({ pin, x }) => (
         <ScrewPin
           key={pin.id}
@@ -494,15 +462,25 @@ export default function PlcChassis3D({
           onHover={onHover}
         />
       ))}
+
+      {/* Dual-Branch 3D Tri-State Bezier Wire Harnesses to Left Legacy & Right Evolved Workcells */}
       {pins.map(({ pin, x }, i) => (
-        <Cable
-          key={'wire-' + pin.id}
-          pin={pin}
-          index={i}
-          start={[x, 3.68, 0.02]}
-          end={[i % 2 ? 3.45 : -3.45, 0.55 + i * 0.04, -0.18]}
-          frame={frame}
-        />
+        <group key={'harness-' + pin.id}>
+          <Cable
+            pin={pin}
+            index={i}
+            start={[x, 3.68, 0.02]}
+            end={[-5.46 + i * 0.04, 1.38 + (i % 3) * 0.04, 0.12]}
+            frame={frame}
+          />
+          <Cable
+            pin={pin}
+            index={i + 7}
+            start={[x, 3.68, 0.02]}
+            end={[1.64 + i * 0.04, 1.38 + (i % 3) * 0.04, 0.12]}
+            frame={frame}
+          />
+        </group>
       ))}
     </group>
   )

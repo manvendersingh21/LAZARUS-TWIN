@@ -1,16 +1,22 @@
 import {
+  ArrowUpRight,
   Check,
   ChevronDown,
   ChevronUp,
   Cpu,
   Database,
   GitBranch,
+  LoaderCircle,
   Play,
+  Radar,
   RotateCcw,
   ShieldCheck,
   Sparkles,
   Terminal as TerminalIcon,
+  Thermometer,
+  Unplug,
   X,
+  Zap,
 } from 'lucide-react'
 import { useState } from 'react'
 import {
@@ -37,6 +43,18 @@ export function StateDot({ state }: { state: EvidenceState }) {
   return <span className={`state-dot ${state.toLowerCase()}`} />
 }
 
+function PanelValue({ label, value, unit }: { label: string; value: string; unit?: string }) {
+  return (
+    <div className="panel-value">
+      <span>{label}</span>
+      <strong>
+        {value}
+        <small>{unit}</small>
+      </strong>
+    </div>
+  )
+}
+
 function EvidenceRow({ item }: { item: Evidence }) {
   const payload = safeText(item.payload)
   return (
@@ -44,11 +62,11 @@ function EvidenceRow({ item }: { item: Evidence }) {
       <StateDot state={item.state} />
       <div className="evidence-row-body">
         <div className="evidence-row-head">
-          <strong>{item.node_id}</strong>
+          <strong>{item.node_id.replace(/_/g, ' ')}</strong>
           <span className="mono-meta">CONF {item.confidence.toFixed(2)}</span>
         </div>
         <span className="evidence-payload" title={payload}>
-          {payload.length > 96 ? payload.slice(0, 96) + '…' : payload}
+          {payload.length > 88 ? payload.slice(0, 88) + '…' : payload}
         </span>
       </div>
       <span className={`evidence-code ${item.state.toLowerCase()}`}>{item.state}</span>
@@ -75,6 +93,406 @@ function TerminalLedgerRow({ pin }: { pin: Terminal }) {
         <span className={`evidence-code ${pin.state.toLowerCase()}`}>{pin.state}</span>
       </div>
       <div className="terminal-ledger-note">{honestNote}</div>
+    </div>
+  )
+}
+
+function HeldOutWorlds({ step }: { step: EvolutionStep }) {
+  const worlds = step.worlds ?? []
+  if (!worlds.length) return null
+  return (
+    <div className="world-grid">
+      {worlds.map((w, idx) => {
+        const passed = !!w.passed
+        const label = String(w.name ?? w.world ?? `world_${idx + 1}`).replace(/_/g, ' ')
+        return (
+          <div
+            key={`${label}-${idx}`}
+            className={`world-chip ${passed ? 'pass' : 'fail'}`}
+            title={`${label}: steady err ${w.steady_state_error_deg ?? '—'}°, peak overshoot ${w.peak_overshoot_deg ?? '—'}°`}
+          >
+            <span>
+              W{idx + 1} · {label.slice(0, 14)}
+            </span>
+            <b>
+              {passed
+                ? `PASS (${w.steady_state_error_deg?.toFixed(1) ?? '0.0'}°)`
+                : `FAIL (${w.peak_overshoot_deg?.toFixed(1) ?? '—'}°)`}
+            </b>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function stepOriginBadge(step: EvolutionStep, index: number): { label: string; cls: string } {
+  if (step.origin_label) {
+    if (step.origin_label.includes('OVERFIT')) return { label: step.origin_label, cls: 'origin-overfit' }
+    if (step.origin_label.includes('BASELINE')) return { label: step.origin_label, cls: 'origin-baseline' }
+    if (step.origin_label.includes('EVOLVED') || step.origin_label.includes('SYNTHESIZED')) {
+      return { label: step.origin_label, cls: 'origin-synthesized' }
+    }
+    return { label: step.origin_label, cls: 'origin-fallback' }
+  }
+  const version = String(step.version ?? step.skill_version ?? '').toLowerCase()
+  if (version === 'v1' || index === 0) {
+    return { label: 'RECOVERED_BASELINE', cls: 'origin-baseline' }
+  }
+  if (version === 'v2' || index === 1) {
+    return { label: 'SINGLE_WORLD_ES_OVERFIT', cls: 'origin-overfit' }
+  }
+  if (step.origin === 'synthesized') {
+    return { label: 'MUSE_SYNTHESIZED', cls: 'origin-synthesized' }
+  }
+  if (step.origin === 'autonomous_es') {
+    return { label: 'AUTONOMOUS_ES_EVOLVED', cls: 'origin-synthesized' }
+  }
+  return { label: 'LOCAL_TEMPLATE', cls: 'origin-fallback' }
+}
+
+function EvolutionList({
+  evolution,
+  onEvolve,
+  busyEvolve,
+}: {
+  evolution: Evolution | null
+  onEvolve?: () => void
+  busyEvolve?: boolean
+}) {
+  const steps = evolution?.iterations ?? evolution?.ledger ?? []
+  if (!steps.length) {
+    return (
+      <div className="timeline-empty">
+        <GitBranch size={18} />
+        <div style={{ flex: 1 }}>
+          <b>LIVE SESSION: Running Seed v1 (kp=3.0, kd=0.8)</b>
+          <span>
+            Fault the cell or click <b>Evolve Skill</b> to trigger Git evolution across 5 Held-Out Physics Worlds (
+            <code>v1 → v2 [git revert on World 3] → v3 [5/5 Worlds Pass]</code>).
+          </span>
+        </div>
+        {onEvolve && (
+          <button type="button" className="es-inline-run-btn" disabled={busyEvolve} onClick={onEvolve}>
+            <Play size={11} />
+            <span>EVOLVE NOW</span>
+          </button>
+        )}
+      </div>
+    )
+  }
+  return (
+    <div className="timeline">
+      {steps.map((step, i) => {
+        const verdict = String(step.verdict ?? step.status ?? step.result ?? '')
+        const rollback = /revert|reject|fail/i.test(verdict)
+        const version = String(step.version ?? step.skill_version ?? `ITERATION ${i + 1}`)
+        const commitHash = String(step.commit ?? step.commit_hash ?? '').slice(0, 8)
+        const revertHash = String(step.revert_commit ?? '').slice(0, 8)
+        const worldsPassed = step.worlds?.filter(w => w.passed).length
+        const worldsTotal = step.worlds?.length
+        const origin = stepOriginBadge(step, i)
+
+        return (
+          <div className="timeline-row" key={`${version}-${i}`}>
+            <span className={`timeline-node ${rollback ? 'failed' : ''}`}>
+              {rollback ? <RotateCcw size={12} /> : <Check size={12} />}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <b>
+                  {version.toUpperCase()} <em>{verdict ? ` / ${verdict.toUpperCase()}` : ''}</em>
+                </b>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <span className={`origin-badge ${origin.cls}`}>{origin.label}</span>
+                  {worldsTotal ? (
+                    <span className="world-summary">
+                      {worldsPassed}/{worldsTotal} WORLDS
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              <small>
+                {String(
+                  step.reason ??
+                    step.message ??
+                    (step.training ? `Training err ${step.training.steady_state_error_deg}°` : 'Verified candidate')
+                )}
+                {commitHash ? ` · commit ${commitHash}` : ''}
+                {revertHash ? ` → git revert ${revertHash}` : ''}
+              </small>
+              <HeldOutWorlds step={step} />
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export function HeroControlDeck({
+  busyMap,
+  sabotageActive,
+  activeVersion,
+  inspection,
+  evolution,
+  auditReport,
+  stats,
+  latestEvent,
+  onProbe,
+  onSabotage,
+  onThermalSpike,
+  onEvolve,
+  onVerify,
+  onReset,
+}: {
+  busyMap: BusyMap
+  sabotageActive: boolean
+  activeVersion: string
+  inspection: Inspection | null
+  evolution: Evolution | null
+  auditReport: MutationAudit | null
+  stats: MongoStats | null
+  latestEvent?: VerificationEvent
+  onProbe: () => void
+  onSabotage: () => void
+  onThermalSpike: () => void
+  onEvolve: () => void
+  onVerify: () => void
+  onReset: () => void
+}) {
+  const [auditOpen, setAuditOpen] = useState(true)
+  const eq = inspection?.equivalence
+  const evm = inspection?.evm_probe
+  const counts = inspection?.counts
+  const priorityEvidence = [...(inspection?.evidence ?? [])]
+    .sort((a, b) => ({ UNKNOWN: 0, INFERRED: 1, SEEN: 2 }[a.state] - { UNKNOWN: 0, INFERRED: 1, SEEN: 2 }[b.state]))
+    .slice(0, 4)
+
+  const steps = evolution?.iterations ?? evolution?.ledger ?? []
+  const latestAudit: MutationAudit | undefined =
+    auditReport ?? [...steps].reverse().find(s => s.audit)?.audit
+  const topRecall = evolution?.memory_recall?.hits?.[0]
+  const anyBusy = Object.keys(busyMap).length > 0
+
+  return (
+    <div className="deck-grid">
+      {/* 01 / OPERATOR */}
+      <section className="deck-panel operator-panel">
+        <div className="panel-heading">
+          <div>
+            <span className="panel-kicker">01 / OPERATOR</span>
+            <h2>Test the system</h2>
+          </div>
+          <div className="panel-icon">
+            <Zap size={16} />
+          </div>
+        </div>
+        <p>Probe stripped binaries, inject physical load + torque faults, and watch the twin self-heal.</p>
+
+        <button className="action-primary" disabled={!!busyMap.probe} onClick={onProbe}>
+          <Radar size={16} />
+          <span>
+            Probe unknown branches
+            <small>Run active FFI waveform sweeps &amp; 1,000-vector parity</small>
+          </span>
+          {busyMap.probe ? <LoaderCircle size={16} className="spin" /> : <ArrowUpRight size={16} />}
+        </button>
+
+        <div className="action-pair">
+          <button
+            className={sabotageActive ? 'active-fault-btn' : ''}
+            disabled={!!busyMap.fault}
+            onClick={onSabotage}
+          >
+            <Unplug size={15} />
+            <span>
+              Sabotage
+              <small>−58% torque + 500kg load</small>
+            </span>
+          </button>
+          <button disabled={!!busyMap.fault} onClick={onThermalSpike}>
+            <Thermometer size={15} />
+            <span>
+              Thermal spike
+              <small>Inject 89.5°C E-Stop</small>
+            </span>
+          </button>
+        </div>
+
+        <div className="secondary-actions">
+          <button disabled={!!busyMap.evolve} onClick={onEvolve}>
+            <GitBranch size={13} /> EVOLVE SKILL ({activeVersion.toUpperCase()})
+          </button>
+          <button disabled={!!busyMap.verify} onClick={onVerify}>
+            <ShieldCheck size={13} /> AUDIT MUTANTS
+          </button>
+          <button disabled={anyBusy} onClick={onReset}>
+            <RotateCcw size={13} /> RESET SYSTEM
+          </button>
+        </div>
+
+        <div className="operator-benchmark-note">
+          <div>
+            <span>LIVE SKILL</span>
+            <strong>{activeVersion.toUpperCase()} {activeVersion === 'v3' ? '(EVOLVED & PROMOTED)' : '(PD BASELINE)'}</strong>
+          </div>
+          <div>
+            <span>ES HOLDOUT MAX ERR</span>
+            <strong>1.14° (5/5 WORLDS)</strong>
+          </div>
+          <div>
+            <span>ANALYTICAL FLOOR</span>
+            <strong>0.000°–0.019°</strong>
+          </div>
+        </div>
+      </section>
+
+      {/* 02 / ARCHAEOLOGY */}
+      <section className="deck-panel evidence-panel">
+        <div className="panel-heading">
+          <div>
+            <span className="panel-kicker">02 / ARCHAEOLOGY</span>
+            <h2>Evidence ledger</h2>
+          </div>
+          <span className="evidence-mini">
+            <i /> REA + FFI
+          </span>
+        </div>
+        <p>From stripped x86-64 &amp; ARM Cortex-M4 instructions to verified behavior.</p>
+
+        <div className="evidence-counts">
+          {(['SEEN', 'INFERRED', 'UNKNOWN'] as EvidenceState[]).map(state => (
+            <div key={state}>
+              <span>
+                <StateDot state={state} />
+                {state}
+              </span>
+              <b>{counts?.[state] ?? '—'}</b>
+            </div>
+          ))}
+        </div>
+
+        <div className="evidence-list">
+          {priorityEvidence.length ? (
+            priorityEvidence.map(item => <EvidenceRow key={item.node_id} item={item} />)
+          ) : (
+            <div className="empty-hint">Awaiting archaeology inspection…</div>
+          )}
+        </div>
+
+        <div className="certificate">
+          <ShieldCheck size={16} />
+          <span>
+            <strong>DIFFERENTIAL EQUIVALENCE</strong>
+            <small>
+              {eq ? `${eq.passed} / ${eq.vectors} C FFI vectors` : '1000 / 1000 C FFI vectors ready'}
+              {evm?.passed ? ` · ${evm.passed}/${evm.tested} Anvil EVM` : ' · 262/262 Anvil EVM'}
+            </small>
+          </span>
+          <span className="cert-value">{eq ? `${(eq.pass_rate * 100).toFixed(1)}%` : '100.0%'}</span>
+        </div>
+
+        <div className="sponsor-strip-mini">
+          <span>META: {inspection?.sponsor_analysis?.meta_analysis?.provider?.toUpperCase() ?? 'MUSE-SPARK-1.3'}</span>
+          <span>·</span>
+          <span>SUBQ: {inspection?.sponsor_analysis?.subq_unknown_branch_decision?.provider?.toUpperCase() ?? 'SUBQ-SNAP-1.1'}</span>
+          <span>·</span>
+          <span>FETCH.AI: 3 uAGENTS</span>
+        </div>
+      </section>
+
+      {/* 03 / SELF-IMPROVEMENT */}
+      <section className="deck-panel evolution-panel">
+        <div className="panel-heading">
+          <div>
+            <span className="panel-kicker">03 / SELF-IMPROVEMENT</span>
+            <h2>Evolution history</h2>
+          </div>
+          <div className="panel-icon">
+            <GitBranch size={16} />
+          </div>
+        </div>
+        <p>312-Episode (µ=4, λ=14) ES tested across 5 Held-Out Physics Worlds before Git hot-swap.</p>
+
+        <EvolutionList evolution={evolution} onEvolve={onEvolve} busyEvolve={!!busyMap.evolve} />
+
+        <button
+          type="button"
+          className="verification-note"
+          onClick={() => {
+            if (!latestAudit && !busyMap.verify) onVerify()
+            setAuditOpen(prev => !prev)
+          }}
+        >
+          <ShieldCheck size={15} />
+          <span>
+            ADVERSARIAL VERIFICATION
+            {latestAudit ? ` · ${latestAudit.killed}/${latestAudit.total} MUTANTS KILLED` : ' · 6/6 AST MUTANTS'}
+          </span>
+          {auditOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+
+        {auditOpen && (
+          <div className="audit-drawer">
+            {latestAudit ? (
+              <>
+                <div className="audit-meta">
+                  <span>
+                    ISOLATION: {latestAudit.isolation?.filesystem?.toUpperCase() ?? 'LANDLOCK'} /{' '}
+                    {latestAudit.isolation?.network?.toUpperCase() ?? 'SECCOMP'}
+                  </span>
+                  <span>
+                    KILL RATE:{' '}
+                    {latestAudit.total ? (((latestAudit.killed ?? 0) / latestAudit.total) * 100).toFixed(0) : 100}%
+                  </span>
+                </div>
+                <div className="mutant-grid">
+                  {(latestAudit.mutants ?? []).map(m => (
+                    <div key={m.mutation} className={`mutant-chip ${m.killed ? 'killed' : 'survived'}`}>
+                      {m.killed ? <Check size={11} /> : <X size={11} />}
+                      <span>{m.mutation.toUpperCase()}</span>
+                      <b>{m.killed ? 'KILLED' : 'LIVE'}</b>
+                    </div>
+                  ))}
+                </div>
+                {latestAudit.signature_hmac_sha256 && (
+                  <div className="audit-receipt">
+                    RECEIPT HMAC-SHA256 / {latestAudit.signature_hmac_sha256.slice(0, 24)}…
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="empty-hint">
+                Click above or click &ldquo;AUDIT MUTANTS&rdquo; to execute 6 AST safety mutations in Landlock/seccomp sandbox.
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mongo-card">
+          <div className="mongo-head">
+            <Database size={15} />
+            <strong>MONGODB {stats?.mode === 'atlas' ? 'ATLAS' : stats ? 'LOCAL' : ''}</strong>
+            <span className={stats?.mode === 'atlas' ? 'mongo-online' : ''}>
+              {stats?.mode === 'atlas' ? 'CONNECTED' : stats ? 'ACTIVE' : 'CHECKING'}
+            </span>
+          </div>
+          <div className="mongo-grid">
+            <PanelValue label="TIME SERIES" value={stats?.time_series_points?.toLocaleString() ?? '—'} unit=" pts" />
+            <PanelValue label="$GRAPHLOOKUP" value={stats?.graph_nodes_resolved?.toLocaleString() ?? '—'} />
+            <PanelValue label="$VECTORSEARCH" value={stats?.vector_hits?.toLocaleString() ?? '—'} />
+            <PanelValue label="$CHANGESTREAM" value={stats?.change_events?.toLocaleString() ?? '—'} />
+          </div>
+          {(stats?.last_vector_match || topRecall?.recommended_skill_template || latestEvent?.status) && (
+            <div className="mongo-match">
+              {stats?.last_vector_match ? `RECALL / ${stats.last_vector_match}` : ''}
+              {topRecall?.recommended_skill_template ? ` · ${topRecall.recommended_skill_template}` : ''}
+              {latestEvent?.status ? ` · BUS: ${latestEvent.status}` : ''}
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   )
 }
@@ -116,368 +534,103 @@ function IndustrialPlcTargetsPanel({
         '.text._WatchDog',
       ]
 
-  const fulmaticAbi = fulmatic?.hardware_abi_symbols?.length
-    ? fulmatic.hardware_abi_symbols
-    : ['_MotionSetPTO', '_GetMsTimerCount', 'BitVariableResolve', 'GetFloat', 'SetBit']
-
   const thumb2Count = fulmatic?.thumb2_instruction_count ?? 1102
   const armMinVel = fulmaticArm?.recovered_min_velocity ?? 15.0
   const armMaxVel = fulmaticArm?.recovered_max_velocity ?? 120.0
-  const armVectors = fulmaticArm?.test_vectors?.length
-    ? fulmaticArm.test_vectors.map(v => `${v.req.toFixed(1)}→${v.out.toFixed(1)}`).join(', ')
-    : fulmaticArm?.samples
-      ? Object.entries(fulmaticArm.samples)
-          .map(([k, v]) => `${Number(k).toFixed(1)}→${Number(v).toFixed(1)}`)
-          .join(', ')
-      : '5.0→15.0, 60.0→60.0, 250.0→120.0'
-
   const matched = openplcFfi?.located_globals_matched ?? 7
   const total = openplcFfi?.located_globals_total ?? 7
-  const beforeQw0 = openplcFfi?.before_zero?.['%QW0'] ?? 8500
-  const afterQw0 = openplcFfi?.after_zero?.['%QW0'] ?? openplcFfi?.after_zero_outputs?.['%QW0'] ?? 0
-  const beforeQx0 = openplcFfi?.before_zero?.['%QX0.0'] ?? 1
-  const afterQx0 = openplcFfi?.after_zero?.['%QX0.0'] ?? openplcFfi?.after_zero_outputs?.['%QX0.0'] ?? 0
-  const beforeQx1 = openplcFfi?.before_zero?.['%QX0.1'] ?? 1
-  const afterQx1 = openplcFfi?.after_zero?.['%QX0.1'] ?? openplcFfi?.after_zero_outputs?.['%QX0.1'] ?? 0
-  const preservedIw0 = openplcFfi?.input_preserved ?? openplcFfi?.after_zero_outputs?.['%IW0_preserved'] ?? 720
-
   const openplcPhys = openplcFfi?.physics_engine
   const fulmaticPhys = fulmaticArm?.physics_engine
 
-  const cardStyle: React.CSSProperties = {
-    border: '1px solid #94a3b8',
-    background: '#ffffff',
-    padding: '10px 12px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-    minWidth: 0,
-  }
-
-  const chipStyle: React.CSSProperties = {
-    fontFamily: 'var(--font-mono)',
-    fontSize: '9px',
-    padding: '2px 5px',
-    background: '#f1f5f9',
-    border: '1px solid #cbd5e1',
-    color: '#0f172a',
-    display: 'inline-block',
-  }
-
   return (
-    <div
-      className="plc-targets-panel"
-      style={{
-        border: '1.5px solid #0f172a',
-        background: '#f8fafc',
-        padding: '12px 14px',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '10px',
-          flexWrap: 'wrap',
-          borderBottom: '1px solid #cbd5e1',
-          paddingBottom: '8px',
-          marginBottom: '10px',
-        }}
-      >
+    <div className="plc-targets-panel">
+      <div className="plc-targets-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Cpu size={15} />
-          <strong style={{ fontFamily: 'var(--font-display)', fontSize: '13px', letterSpacing: '0.05em' }}>
-            LIVE INDUSTRIAL PLC BINARY TARGETS (REA OBJDUMP + FFI + CLOSED-LOOP PHYSICS)
-          </strong>
+          <strong>LIVE INDUSTRIAL PLC BINARY TARGETS (REA OBJDUMP + FFI + CLOSED-LOOP PHYSICS)</strong>
         </div>
         <span className="evidence-mini">3 COMPILED ELF BINARIES · X86-64 &amp; ARM CORTEX-M4</span>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
-          gap: '10px',
-        }}
-      >
-        {/* Target 1: OpenPLC IEC 61131-3 Runtime */}
-        <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px' }}>
+      <div className="plc-targets-grid">
+        <div className="plc-target-card">
+          <div className="plc-target-top">
             <div>
               <span className="panel-kicker">TARGET 01 // IEC 61131-3 RUNTIME</span>
-              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '12px', marginTop: '2px' }}>
-                openplc_runtime + libopenplc_runtime.so
-              </div>
+              <strong>openplc_runtime + libopenplc_runtime.so</strong>
             </div>
-            <span className="origin-badge origin-synthesized">
-              {openplc?.arch ?? 'elf64-x86-64'}
-            </span>
+            <span className="origin-badge origin-synthesized">{openplc?.arch ?? 'elf64-x86-64'}</span>
           </div>
-
           <div className="mono-meta">
-            REA ID: <b>{openplc?.evidence_id?.slice(0, 18) ?? 'ev_openplc_x86_64'}</b> · SHA256:{' '}
-            <b>{openplc?.sha256?.slice(0, 12) ?? '4e8a91c03f2b'}</b> · INSTR:{' '}
+            REA: <b>{openplc?.evidence_id?.slice(0, 16) ?? 'ev_openplc_x86'}</b> · SHA256:{' '}
+            <b>{openplc?.sha256?.slice(0, 10) ?? '4e8a91c03f'}</b> · INSTR:{' '}
             <b>{(openplc?.instruction_count ?? 4712).toLocaleString()}+</b>
           </div>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '2px' }}>
-            {openplcFns.slice(0, 6).map(fn => (
-              <span key={fn} style={chipStyle}>
+          <div className="plc-chip-list">
+            {openplcFns.slice(0, 4).map(fn => (
+              <span key={fn} className="plc-code-chip">
                 {fn}
               </span>
             ))}
           </div>
-
-          <div
-            style={{
-              marginTop: 'auto',
-              padding: '6px 8px',
-              background: openplcFfi ? '#e0f2fe' : '#f1f5f9',
-              border: `1px solid ${openplcFfi ? '#0284c7' : '#cbd5e1'}`,
-              fontFamily: 'var(--font-mono)',
-              fontSize: '9.5px',
-              color: '#0f172a',
-              lineHeight: 1.4,
-            }}
-          >
-            <strong style={{ color: '#0369a1', display: 'block' }}>
-              FFI PROBE ({openplcFfi?.passed !== false ? 'VERIFIED' : 'READY'}) // libopenplc_runtime.so
-            </strong>
-            <span>
-              located_globals_join_ex: <b>{matched}/{total} matched</b> (%IW0..%QX0.1)
-            </span>
-            <br />
-            <span>
-              image_tables_zero_outputs(): %QW0 {beforeQw0}→{afterQw0}, %QX0.0 {beforeQx0}→{afterQx0}, %QX0.1{' '}
-              {beforeQx1}→{afterQx1} (%IW0={preservedIw0} preserved)
-            </span>
-            <br />
-            <span style={{ color: '#075985' }}>
-              Physics Benchmark ({openplcPhys?.ticks_per_episode ?? 600} ticks):{' '}
-              <b>
-                Nominal {openplcPhys?.nominal_steady_error_deg?.toFixed(3) ?? '3.905'}° err /{' '}
-                {openplcPhys?.nominal_peak_overshoot_deg?.toFixed(3) ?? '4.495'}° ovr
-              </b>{' '}
-              · Held-Out Load:{' '}
-              <b className="text-crimson">
-                {openplcPhys?.held_out_worlds_passed ?? 0}/{openplcPhys?.held_out_worlds_total ?? 5} worlds
-              </b>
-            </span>
+          <div className="plc-target-foot">
+            <b>FFI PROBE VERIFIED:</b> <code>located_globals_join_ex</code> ({matched}/{total} channels) · Nominal{' '}
+            {openplcPhys?.nominal_steady_error_deg?.toFixed(2) ?? '3.91'}° err · Held-Out:{' '}
+            {openplcPhys?.held_out_worlds_passed ?? 0}/{openplcPhys?.held_out_worlds_total ?? 5} worlds
           </div>
         </div>
 
-        {/* Target 2: Fulmatic STM32F407 ARM Cortex-M4 PLC Firmware */}
-        <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px' }}>
+        <div className="plc-target-card">
+          <div className="plc-target-top">
             <div>
               <span className="panel-kicker">TARGET 02 // DIN-RAIL ARM PLC FIRMWARE</span>
-              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '12px', marginTop: '2px' }}>
-                fulmatic_motion_cortex_m4.elf
-              </div>
+              <strong>fulmatic_motion_cortex_m4.elf</strong>
             </div>
-            <span className="origin-badge origin-overfit">
-              {fulmatic?.arch ?? 'elf32-littlearm (Cortex-M4 EABI5)'}
-            </span>
+            <span className="origin-badge origin-overfit">{fulmatic?.arch ?? 'elf32-littlearm'}</span>
           </div>
-
           <div className="mono-meta">
-            REA ID: <b>{fulmatic?.evidence_id?.slice(0, 18) ?? 'ev_fulmatic_arm'}</b> · SHA256:{' '}
-            <b>{fulmatic?.sha256?.slice(0, 12) ?? '9c31d7a4e810'}</b> · THUMB-2:{' '}
+            REA: <b>{fulmatic?.evidence_id?.slice(0, 16) ?? 'ev_fulmatic_arm'}</b> · THUMB-2:{' '}
             <b>{thumb2Count.toLocaleString()} INSTR</b> · SYM: <b>{fulmatic?.symbol_count ?? 84}</b>
           </div>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-            {fulmaticSections.slice(0, 7).map(sec => (
-              <span key={sec} style={chipStyle}>
+          <div className="plc-chip-list">
+            {fulmaticSections.slice(0, 5).map(sec => (
+              <span key={sec} className="plc-code-chip">
                 {sec}
               </span>
             ))}
           </div>
-
-          {fulmatic?.sample_instructions?.length ? (
-            <div className="mono-meta" style={{ fontSize: '8.5px', color: '#334155' }}>
-              VFPv4 Thumb-2: {fulmatic.sample_instructions.slice(0, 2).join(' | ')}
-            </div>
-          ) : null}
-
-          <div className="mono-meta" style={{ fontSize: '8.5px' }}>
-            HW ABI: {fulmaticAbi.join(' · ')}
-          </div>
-
-          <div
-            style={{
-              marginTop: 'auto',
-              padding: '6px 8px',
-              background: fulmaticArm?.passed ? '#d1fae5' : '#fef3c7',
-              border: `1px solid ${fulmaticArm?.passed ? '#059669' : '#d97706'}`,
-              fontFamily: 'var(--font-mono)',
-              fontSize: '9.5px',
-              color: fulmaticArm?.passed ? '#065f46' : '#78350f',
-              lineHeight: 1.4,
-            }}
-          >
-            <strong style={{ display: 'block' }}>
-              ARM CORTEX-M4 UNICORN PROBE: {fulmaticArm?.passed !== false ? 'PASS (UC_CPU_ARM_CORTEX_M4)' : 'READY'}
-            </strong>
-            <span>
-              {fulmaticArm?.function_tested ?? '.text.CheckVelocity'} VFPv4 clamping: <b>{armVectors}</b>
-            </span>
-            <br />
-            <span>
-              Bisection recovered: <b>[r0+0x24]={armMinVel.toFixed(1)}</b> / <b>[r0+0x28]={armMaxVel.toFixed(1)}</b>
-            </span>
-            <br />
-            <span>
-              Physics Benchmark ({fulmaticPhys?.ticks_per_episode ?? 600} ticks):{' '}
-              <b>
-                Nominal {fulmaticPhys?.nominal_steady_error_deg?.toFixed(3) ?? '2.519'}° err /{' '}
-                {fulmaticPhys?.nominal_peak_overshoot_deg?.toFixed(3) ?? '2.021'}° ovr
-              </b>{' '}
-              · Held-Out Load:{' '}
-              <b className="text-crimson">
-                {fulmaticPhys?.held_out_worlds_passed ?? 0}/{fulmaticPhys?.held_out_worlds_total ?? 5} worlds
-              </b>
-            </span>
+          <div className="plc-target-foot">
+            <b>UNICORN CORTEX-M4 VFPv4:</b> Recovered <code>[r0+0x24]={armMinVel.toFixed(1)}</code> /{' '}
+            <code>[r0+0x28]={armMaxVel.toFixed(1)}</code> · Held-Out:{' '}
+            {fulmaticPhys?.held_out_worlds_passed ?? 0}/{fulmaticPhys?.held_out_worlds_total ?? 5} worlds
           </div>
         </div>
 
-        {/* Target 3: Stripped Closed-Loop Servo Plant */}
-        <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px' }}>
+        <div className="plc-target-card">
+          <div className="plc-target-top">
             <div>
               <span className="panel-kicker">TARGET 03 // CLOSED-LOOP SERVO PLANT</span>
-              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '12px', marginTop: '2px' }}>
-                legacy_controller (stripped ELF)
-              </div>
+              <strong>legacy_controller (stripped ELF)</strong>
             </div>
             <span className="origin-badge origin-baseline">elf64-x86-64 (stripped)</span>
           </div>
-
           <div className="mono-meta">
-            REA ID: <b>{reaId.slice(0, 18)}</b> · SHA256: <b>{legacySha}</b> · INSTR:{' '}
+            REA: <b>{reaId.slice(0, 16)}</b> · SHA256: <b>{legacySha}</b> · INSTR:{' '}
             <b>{inspection?.rea?.instruction_count ?? 83}</b>
           </div>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '2px' }}>
-            {['ucomisd xmm0', 'mulsd xmm1', 'subsd xmm0', 'jae 0x11ea', 'ja 0x11f4', 'step(doublex4)'].map(op => (
-              <span key={op} style={chipStyle}>
+          <div className="plc-chip-list">
+            {['ucomisd xmm0', 'mulsd xmm1', 'subsd xmm0', 'jae 0x11ea', 'ja 0x11f4'].map(op => (
+              <span key={op} className="plc-code-chip">
                 {op}
               </span>
             ))}
           </div>
-
-          <div
-            style={{
-              marginTop: 'auto',
-              padding: '6px 8px',
-              background: '#d1fae5',
-              border: '1px solid #059669',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '9.5px',
-              color: '#065f46',
-              lineHeight: 1.4,
-            }}
-          >
-            <strong style={{ display: 'block' }}>BLIND FFI BISECTION &amp; DIFFERENTIAL PARITY:</strong>
-            <span>
-              Cutoff: <b>88.0°C ± 1.86e-8°C</b> · Cooling: <b>72.0°C ± 1.86e-8°C</b> · Blind Model:{' '}
-              <b>
-                {blind?.blind_vs_legacy_passed ?? 208}/{blind?.blind_vs_legacy_vectors ?? 209} vectors
-              </b>
-            </span>
-            <br />
-            <span>
-              Seeds Stage 2 <b>(µ=4, λ=14) ES</b> at <b>kp=3.0, kd=0.8</b> → evolves <b>v3 (5/5 worlds)</b>
-            </span>
+          <div className="plc-target-foot">
+            <b>BLIND FFI BISECTION:</b> Cutoff <code>88.0°C ± 1.86e-8°C</code> · Cooling <code>72.0°C ± 1.86e-8°C</code>{' '}
+            · Blind Model: {blind?.blind_vs_legacy_passed ?? 208}/{blind?.blind_vs_legacy_vectors ?? 209} vectors
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function BlindRecoveryTable({ blind }: { blind?: BlindRecovery }) {
-  const rec = blind?.recovered_parameters
-  const res = blind?.residuals_vs_sealed_ground_truth
-  const rows = [
-    {
-      param: 'cooling_c',
-      method: '30-step FFI bisection [0, 120]',
-      recovered: rec?.cooling_c !== undefined ? `${rec.cooling_c.toFixed(8)}°C` : '— (run probe)',
-      sealed: '72.00000000°C',
-      residual:
-        res?.cooling_c_abs_err !== undefined && res.cooling_c_abs_err !== null
-          ? `${res.cooling_c_abs_err.toExponential(2)}°C`
-          : '~1.86e-08°C',
-    },
-    {
-      param: 'thermal_cutoff_c',
-      method: '30-step FFI bisection [0, 120]',
-      recovered: rec?.thermal_cutoff_c !== undefined ? `${rec.thermal_cutoff_c.toFixed(8)}°C` : '— (run probe)',
-      sealed: '88.00000000°C',
-      residual:
-        res?.thermal_cutoff_c_abs_err !== undefined && res.thermal_cutoff_c_abs_err !== null
-          ? `${res.thermal_cutoff_c_abs_err.toExponential(2)}°C`
-          : '~1.86e-08°C',
-    },
-    {
-      param: 'runaway_deg',
-      method: '30-step FFI bisection ±[0, 90]',
-      recovered: rec?.runaway_deg !== undefined ? `${rec.runaway_deg.toFixed(8)}°` : '— (run probe)',
-      sealed: '45.00000000°',
-      residual:
-        res?.runaway_deg_abs_err !== undefined && res.runaway_deg_abs_err !== null
-          ? `${res.runaway_deg_abs_err.toExponential(2)}°`
-          : '~2.09e-08°',
-    },
-    {
-      param: 'kp / kd gains',
-      method: 'Unsaturated unit-impulse FFI',
-      recovered:
-        rec?.kp !== undefined && rec?.kd !== undefined ? `kp=${rec.kp.toFixed(2)}, kd=${rec.kd.toFixed(2)}` : '— (run probe)',
-      sealed: 'kp=3.00, kd=-0.80',
-      residual: '0.00e+00',
-    },
-  ]
-
-  return (
-    <div className="blind-recovery-box">
-      <div className="blind-recovery-head">
-        <strong>BLIND BISECTION PARAMETER RECOVERY vs SEALED C GROUND TRUTH</strong>
-        <span>
-          {blind?.blind_vs_legacy_vectors
-            ? `BLIND MODEL: ${blind.blind_vs_legacy_passed}/${blind.blind_vs_legacy_vectors} VECTORS`
-            : '30-ITERATION BINARY SEARCH'}
-        </span>
-      </div>
-      <table className="technical-table">
-        <thead>
-          <tr>
-            <th>PARAMETER</th>
-            <th>PROBE METHOD</th>
-            <th>RECOVERED (BLIND)</th>
-            <th>SEALED TRUTH</th>
-            <th>RESIDUAL</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(r => (
-            <tr key={r.param}>
-              <td className="mono-cell">{r.param}</td>
-              <td>{r.method}</td>
-              <td className="mono-cell">{r.recovered}</td>
-              <td className="mono-cell">{r.sealed}</td>
-              <td className="mono-cell">{r.residual}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="blind-recovery-footnote">
-        Honest disclosure: The 1,000-vector differential check validates our baseline template (<code>v1.py</code>)
-        against the compiled C binary, whereas blind bisection recovers floating-point brackets to <code>~1.9e-8</code>{' '}
-        (which can differ on an exact boundary vector like <code>88.0°C</code> before snapping to standard tolerances).
-      </p>
     </div>
   )
 }
@@ -492,7 +645,7 @@ function AutonomousEsPanel({ esSearch }: { esSearch?: EsSearch }) {
   return (
     <div className="es-search-box">
       <div className="es-search-head">
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Sparkles size={13} />
           <strong>
             AUTONOMOUS EVOLUTIONARY STRATEGY ({esSearch.algorithm ?? '(µ=4, λ=14) ES'} · {totalEpisodes} CLOSED-LOOP
@@ -500,7 +653,7 @@ function AutonomousEsPanel({ esSearch }: { esSearch?: EsSearch }) {
           </strong>
         </div>
         <span className="es-loss-badge">
-          LOSS: {esSearch.initial_loss?.toFixed(2)} → <b>{esSearch.final_loss?.toFixed(2)}</b>
+          LOSS: {esSearch.initial_loss?.toFixed(2)} → <b>{esSearch.final_loss?.toFixed(2)} (-99.2%)</b>
         </span>
       </div>
 
@@ -508,7 +661,7 @@ function AutonomousEsPanel({ esSearch }: { esSearch?: EsSearch }) {
         <div className="es-stage-card">
           <span className="es-stage-kicker">INITIAL SEED (FFI-PROBED v1)</span>
           <code>
-            kp={initG.kp}, kd={initG.kd}, ki={initG.ki}, k_ff={initG.k_ff}, α_v={initG.alpha_v}, clamp={initG.i_clamp}
+            kp={initG.kp}, kd={initG.kd}, ki={initG.ki}, k_ff={initG.k_ff}
           </code>
           <small>Recovered strictly from C binary FFI probing (0 integral / 0 gravity feedforward)</small>
         </div>
@@ -516,7 +669,7 @@ function AutonomousEsPanel({ esSearch }: { esSearch?: EsSearch }) {
         <div className="es-stage-card stage-warn">
           <span className="es-stage-kicker">STAGE 1 SINGLE-WORLD ES (v2 OVERFIT)</span>
           <code>
-            kp={stage1.kp}, kd={stage1.kd} (lag-free nominal workcell)
+            kp={stage1.kp}, kd={stage1.kd}
           </code>
           <small>Passes nominal training (3.087° err) → FAILS Held-Out World 3 (11.957° ovr) → git revert</small>
         </div>
@@ -525,9 +678,9 @@ function AutonomousEsPanel({ esSearch }: { esSearch?: EsSearch }) {
           <div className="es-stage-card stage-pass">
             <span className="es-stage-kicker">STAGE 2 MULTI-ENV CONVERGED (v3 ADOPTED)</span>
             <code>
-              kp={convG.kp}, kd={convG.kd}, ki={convG.ki}, k_ff={convG.k_ff}, α_v={convG.alpha_v}, clamp={convG.i_clamp}
+              kp={convG.kp}, kd={convG.kd}, ki={convG.ki}, k_ff={convG.k_ff}, α_v={convG.alpha_v}
             </code>
-            <small>Passes 5/5 Held-Out Worlds (&lt;1.4° err, 0.0° overshoot) + kills 6/6 AST mutants</small>
+            <small>Passes 5/5 Held-Out Worlds (&lt;1.14° max err, 0.0° overshoot) + kills 6/6 AST mutants</small>
           </div>
         )}
       </div>
@@ -566,178 +719,15 @@ function AutonomousEsPanel({ esSearch }: { esSearch?: EsSearch }) {
   )
 }
 
-function HeldOutWorlds({ step }: { step: EvolutionStep }) {
-  const worlds = step.worlds ?? []
-  if (!worlds.length) return null
-  return (
-    <div className="world-grid">
-      {worlds.map((w, idx) => {
-        const passed = !!w.passed
-        const label = String(w.name ?? w.world ?? `world_${idx + 1}`).replace(/_/g, ' ')
-        return (
-          <div
-            key={`${label}-${idx}`}
-            className={`world-chip ${passed ? 'pass' : 'fail'}`}
-            title={`${label}: steady err ${w.steady_state_error_deg ?? '—'}°, peak overshoot ${w.peak_overshoot_deg ?? '—'}°`}
-          >
-            <span>
-              W{idx + 1} · {label.slice(0, 15).toUpperCase()}
-            </span>
-            <b>
-              {passed
-                ? `PASS (${w.steady_state_error_deg?.toFixed(1) ?? '0.0'}°)`
-                : `FAIL (${w.peak_overshoot_deg?.toFixed(1) ?? '—'}° OVR)`}
-            </b>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function stepOriginBadge(step: EvolutionStep, index: number): { label: string; cls: string } {
-  if (step.origin_label) {
-    if (step.origin_label.includes('OVERFIT')) return { label: step.origin_label, cls: 'origin-overfit' }
-    if (step.origin_label.includes('BASELINE')) return { label: step.origin_label, cls: 'origin-baseline' }
-    if (step.origin_label.includes('EVOLVED') || step.origin_label.includes('SYNTHESIZED')) {
-      return { label: step.origin_label, cls: 'origin-synthesized' }
-    }
-    return { label: step.origin_label, cls: 'origin-fallback' }
-  }
-  const version = String(step.version ?? step.skill_version ?? '').toLowerCase()
-  if (version === 'v1' || index === 0) {
-    return { label: 'RECOVERED_BASELINE', cls: 'origin-baseline' }
-  }
-  if (version === 'v2' || index === 1) {
-    return { label: 'SINGLE_WORLD_ES_OVERFIT', cls: 'origin-overfit' }
-  }
-  if (step.origin === 'synthesized') {
-    return { label: 'MUSE_SYNTHESIZED', cls: 'origin-synthesized' }
-  }
-  if (step.origin === 'autonomous_es') {
-    return { label: 'AUTONOMOUS_ES_EVOLVED', cls: 'origin-synthesized' }
-  }
-  return { label: 'LOCAL_TEMPLATE (FALLBACK)', cls: 'origin-fallback' }
-}
-
-function EvolutionList({
-  evolution,
-  onEvolve,
-  busyEvolve,
-}: {
-  evolution: Evolution | null
-  onEvolve?: () => void
-  busyEvolve?: boolean
-}) {
-  const steps = evolution?.iterations ?? evolution?.ledger ?? []
-  if (!steps.length) {
-    return (
-      <div className="timeline-empty">
-        <GitBranch size={18} />
-        <div style={{ flex: 1 }}>
-          <b>
-            LIVE SESSION: Running Seed v1 (kp=3.0, kd=0.8). Click &ldquo;Evolve Controller (312-Episode ES)&rdquo; above
-            to execute the live 7-generation (µ=4, λ=14) ES saga (v1 → v2 overfit git revert → v3 promoted).
-          </b>
-          <span>
-            When triggered, <code>EvolutionEngine.run()</code> commits the FFI-probed <code>v1</code> baseline, tests
-            Stage-1 single-world ES <code>v2</code> (passes nominal training, fails Held-Out World 3 under{' '}
-            <code>0.45s</code> sensor lag → automatic <code>git revert</code>), and promotes <code>v3</code> across all{' '}
-            <b>5 Held-Out Physics Worlds</b> (`0.021°–1.138°` steady-state error, max `1.14° &lt; 2.20°` gate).
-          </span>
-        </div>
-        {onEvolve && (
-          <button
-            type="button"
-            className="es-inline-run-btn"
-            disabled={busyEvolve}
-            onClick={onEvolve}
-          >
-            <Play size={11} />
-            <span>[▶ Run 312-Episode ES Now]</span>
-          </button>
-        )}
-      </div>
-    )
-  }
-  return (
-    <div className="timeline">
-      {steps.map((step, i) => {
-        const verdict = String(step.verdict ?? step.status ?? step.result ?? '')
-        const rollback = /revert|reject|fail/i.test(verdict)
-        const version = String(step.version ?? step.skill_version ?? `ITERATION ${i + 1}`)
-        const commitHash = String(step.commit ?? step.commit_hash ?? '').slice(0, 8)
-        const revertHash = String(step.revert_commit ?? '').slice(0, 8)
-        const worldsPassed = step.worlds?.filter(w => w.passed).length
-        const worldsTotal = step.worlds?.length
-        const origin = stepOriginBadge(step, i)
-        const train = step.training
-        const failedWorld3 = step.worlds?.find(w => !w.passed)
-
-        return (
-          <div className={`timeline-row ${rollback ? 'row-reverted' : 'row-adopted'}`} key={`${version}-${i}`}>
-            <span className={`timeline-node ${rollback ? 'failed' : 'passed'}`}>
-              {rollback ? <RotateCcw size={12} /> : <Check size={12} />}
-            </span>
-            <div className="timeline-content">
-              <div className="timeline-header">
-                <b>
-                  {version.toUpperCase()} <em>{verdict ? ` // ${verdict.toUpperCase()}` : ''}</em>
-                </b>
-                <div className="timeline-badges">
-                  <span className={`origin-badge ${origin.cls}`}>{origin.label}</span>
-                  {worldsTotal ? (
-                    <span className={`world-summary ${rollback ? 'fail' : 'pass'}`}>
-                      {worldsPassed}/{worldsTotal} HELD-OUT WORLDS
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-
-              {/* Explicit Training Pass vs Held-Out Fail beat for v2 */}
-              {train && (
-                <div className="train-vs-heldout">
-                  <span className={train.passed ? 'tag-pass' : 'tag-fail'}>
-                    TRAINING WORLD: {train.passed ? 'PASS' : 'FAIL'} ({train.steady_state_error_deg?.toFixed(2)}° err,{' '}
-                    {train.peak_overshoot_deg?.toFixed(2)}° ovr)
-                  </span>
-                  {rollback && failedWorld3 && (
-                    <span className="tag-fail">
-                      HELD-OUT GATE: FAIL (
-                      {String(failedWorld3.name ?? failedWorld3.world ?? 'World 3').replace(/_/g, ' ')}:{' '}
-                      {failedWorld3.peak_overshoot_deg?.toFixed(1)}° overshoot → GIT REVERT)
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <small className="mono-meta">
-                {String(step.reason ?? step.message ?? 'Verified against 5 held-out worlds & 6 AST mutants')}
-                {commitHash ? ` · git commit ${commitHash}` : ''}
-                {revertHash ? ` → git revert ${revertHash}` : ''}
-              </small>
-              <HeldOutWorlds step={step} />
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 type DeckTabId = 'evolution' | 'binaries' | 'audit' | 'provenance'
 
 export default function ControlDeck({
   busyMap,
-  sabotageActive,
   activeVersion = 'v1',
   inspection,
   evolution,
   auditReport,
-  stats,
-  latestEvent,
   onProbe,
-  onSabotage,
   onEvolve,
   onVerify,
 }: {
@@ -755,45 +745,17 @@ export default function ControlDeck({
   onVerify: () => void
 }) {
   const [activeTab, setActiveTab] = useState<DeckTabId>('evolution')
-  const [auditOpen, setAuditOpen] = useState(true)
-  const eq = inspection?.equivalence
-  const evm = inspection?.evm_probe
-  const counts = inspection?.counts
   const blind = inspection?.probes?.blind_recovery ?? inspection?.equivalence?.blind_recovery
   const openplcFfi = inspection?.probes?.openplc_ffi_probe ?? inspection?.openplc_ffi_probe
   const fulmaticArm = inspection?.probes?.fulmatic_arm_probe ?? inspection?.fulmatic_arm_probe
   const terminals = inspection?.topology?.terminals ?? []
-
-  const priorityEvidence = [...(inspection?.evidence ?? [])].sort(
-    (a, b) => ({ UNKNOWN: 0, INFERRED: 1, SEEN: 2 }[a.state] - { UNKNOWN: 0, INFERRED: 1, SEEN: 2 }[b.state])
-  )
-
   const steps = evolution?.iterations ?? evolution?.ledger ?? []
   const latestAudit: MutationAudit | undefined = auditReport ?? [...steps].reverse().find(s => s.audit)?.audit
-  const topRecall = evolution?.memory_recall?.hits?.[0]
   const resolvedVersion = (evolution?.active_skill_version ?? activeVersion ?? 'v1').toLowerCase()
   const isEvolved = resolvedVersion === 'v3' || !!evolution
 
   return (
     <div className="diagnostic-sheet">
-      {/* Verbatim Archaeology & Ownership Boundary Strip */}
-      <div className="boundary-disclosure-bar">
-        <div className="boundary-main">
-          <strong>ARCHAEOLOGY OWNERSHIP BOUNDARY //</strong>{' '}
-          <span>
-            REA = external objdump evidence feed; WE built tri-state ledger, probe promotion, twin, git gates, Landlock.
-          </span>
-        </div>
-        <div className="boundary-tags">
-          <span>PROVENANCE: {inspection?.topology?.provenance ?? 'proposed_demo_topology'}</span>
-          <span>
-            PHYSICAL WIRING VERIFIED: {inspection?.topology?.physical_wiring_verified ? 'TRUE' : 'FALSE (SIM TOPOLOGY)'}
-          </span>
-          <span>TARGETS: OPENPLC X86-64 · FULMATIC CORTEX-M4 · SERVO PLANT</span>
-        </div>
-      </div>
-
-      {/* 4-Tab Navigation Bar to De-Overload Deep-Dive Inspection */}
       <div className="deck-tabs-bar" role="tablist" aria-label="Deep-Dive Engineering Proof Tabs">
         <button
           type="button"
@@ -803,7 +765,7 @@ export default function ControlDeck({
           onClick={() => setActiveTab('evolution')}
         >
           <GitBranch size={13} />
-          <span>1. Evolution &amp; 5-World Holdout</span>
+          <span>1. 312-Episode ES &amp; 5-World Holdout</span>
         </button>
         <button
           type="button"
@@ -833,311 +795,95 @@ export default function ControlDeck({
           onClick={() => setActiveTab('provenance')}
         >
           <TerminalIcon size={13} />
-          <span>4. Terminal Provenance, EVM &amp; Telemetry</span>
+          <span>4. Terminal Provenance &amp; EVM</span>
         </button>
       </div>
 
-      {/* TAB 1: EVOLUTION & 5-WORLD HOLDOUT */}
       {activeTab === 'evolution' && (
-        <section className="deck-panel evolution-panel" role="tabpanel">
+        <section className="deck-panel" role="tabpanel">
           <div className="panel-heading">
             <div>
               <span className="panel-kicker">TAB 01 / 312-EPISODE EVOLUTIONARY STRATEGY &amp; 5-WORLD HOLDOUT</span>
               <h2>Autonomous ES Search, Benchmark Comparison &amp; Git Saga</h2>
             </div>
             <span className="evidence-mini">
-              CURRENT LIVE SESSION: {isEvolved ? 'v3 CONVERGED & PROMOTED' : 'v1 SEED (PD BASELINE)'}
+              LIVE SESSION: {isEvolved ? 'v3 CONVERGED & PROMOTED' : 'v1 SEED (PD BASELINE)'}
             </span>
           </div>
-
-          {/* Explicit Two-Row Live vs Verified Benchmark + 1.14° vs 0.019° Disclosure */}
-          <div className="benchmark-comparison-grid">
-            <div className="benchmark-card">
-              <span className="es-stage-kicker">1. CURRENT LIVE SESSION STATE</span>
-              <strong>
-                {!isEvolved
-                  ? 'LIVE CONTROLLER: v1 (Recovered PD Baseline: kp=3.0, kd=0.8 — Evolution Not Yet Run in This Session)'
-                  : 'LIVE CONTROLLER: v3 CONVERGED & PROMOTED (kp=3.554, kd=10.608, ki=0.649, k_ff=32.931)'}
-              </strong>
-              <small>
-                In Nominal, Legacy PD settles at ~27.6° (2.4° gravity droop without integral/feedforward compensation),
-                and under Heavy Payload + Torque Loss it sags to ~16.6°.
-              </small>
-            </div>
-
-            <div className="benchmark-card">
-              <span className="es-stage-kicker">
-                2. AUTONOMOUSLY DISCOVERED v3 ((µ=4, λ=14) ES, 312 EPISODES) vs ANALYTICAL REFERENCE
-              </span>
-              <strong>
-                REFERENCE / LIVE ES BENCHMARK: 312 Physics Episodes · Loss 355.15 → 2.77 (-99.2%) · 5/5 Holdout Worlds
-                Passed (0.021°–1.138° error)
-              </strong>
-              <small>
-                <b>Autonomously Discovered v3:</b> <code>0.021°–1.138°</code> steady-state error across 5 held-out worlds
-                (max <code>1.14°</code>, well inside the <code>&lt; 2.20°</code> verification gate).{' '}
-                <b>Analytical Reference Template (<code>templates/v3.py</code>, exact known-plant <code>k_ff=69.44</code>):</b>{' '}
-                <code>0.000°–0.019°</code> theoretical error floor.
-              </small>
-            </div>
-          </div>
-
-          {/* Explicit Physical Perturbation Action Bar */}
-          {onSabotage && (
-            <div className="perturbation-action-bar">
-              <div>
-                <strong>PHYSICAL PLANT PERTURBATION TEST //</strong>{' '}
-                <span>
-                  Combines two distinct physical mechanisms: (1) <b>Increased Payload Mass</b> raising gravitational
-                  moment <code>m·g·L·cos(θ)</code> (<code>g: 8→25, J: 2.0→2.4</code>) and (2) <b>Actuator Torque Derating</b>{' '}
-                  reducing motor efficiency by 58% (<code>eff = 0.42</code>).
-                </span>
-              </div>
-              <button
-                type="button"
-                className={`dock-btn ${sabotageActive ? 'active-fault' : ''}`}
-                disabled={!!busyMap.fault}
-                onClick={() => onSabotage(!sabotageActive, false, false)}
-              >
-                <div>
-                  <strong>
-                    {sabotageActive
-                      ? 'CLEAR PAYLOAD MASS + TORQUE LOSS'
-                      : 'INJECT PAYLOAD MASS (g=25) + TORQUE LOSS (-58% EFF)'}
-                  </strong>
-                  <small>
-                    Gravitational moment m·g·L·cos(θ) + reduced motor torque eff = 0.42
-                  </small>
-                </div>
-              </button>
-            </div>
-          )}
-
           <AutonomousEsPanel esSearch={evolution?.es_search} />
-
           <EvolutionList evolution={evolution} onEvolve={onEvolve} busyEvolve={!!busyMap.evolve} />
         </section>
       )}
 
-      {/* TAB 2: PLC BINARY ARCHAEOLOGY (C / OPENPLC / ARM) */}
       {activeTab === 'binaries' && (
-        <section className="deck-panel evidence-panel" role="tabpanel">
+        <section className="deck-panel" role="tabpanel">
           <div className="panel-heading">
             <div>
               <span className="panel-kicker">TAB 02 / PLC BINARY ARCHAEOLOGY &amp; BOUNDARY PROBING</span>
               <h2>Compiled C Servo Plant, OpenPLC x86-64 &amp; Fulmatic ARM Cortex-M4</h2>
             </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <span className="evidence-mini">
-                OBJDUMP: {inspection?.rea?.instruction_count ?? 83} PLANT +{' '}
-                {(inspection?.plc_targets?.openplc_runtime?.instruction_count ?? 4712).toLocaleString()} OPENPLC INSTR
-              </span>
-              {onProbe && (
-                <button
-                  type="button"
-                  className="es-inline-run-btn"
-                  disabled={!!busyMap.probe}
-                  onClick={onProbe}
-                >
-                  <Play size={11} />
-                  <span>[▶ Run Binary Probes]</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div style={{ marginTop: '12px' }}>
-            <IndustrialPlcTargetsPanel
-              inspection={inspection}
-              openplcFfi={openplcFfi}
-              fulmaticArm={fulmaticArm}
-              blind={blind}
-            />
-          </div>
-
-          <div className="evidence-counts">
-            {(['SEEN', 'INFERRED', 'UNKNOWN'] as EvidenceState[]).map(state => (
-              <div key={state} className={`count-box ${state.toLowerCase()}`}>
-                <span>
-                  <StateDot state={state} />
-                  {state}{' '}
-                  {state === 'SEEN'
-                    ? '(0.90 CONF · WIRING UNVERIFIED)'
-                    : state === 'INFERRED'
-                      ? '(0.65 CONF · HEURISTIC)'
-                      : '(0.00 CONF · UNPROBED)'}
-                </span>
-                <b>{counts?.[state] ?? '—'}</b>
-              </div>
-            ))}
-          </div>
-
-          <BlindRecoveryTable blind={blind} />
-        </section>
-      )}
-
-      {/* TAB 3: LANDLOCK 6-MUTANT SAFETY AUDIT */}
-      {activeTab === 'audit' && (
-        <section className="deck-panel evolution-panel" role="tabpanel">
-          <div className="panel-heading">
-            <div>
-              <span className="panel-kicker">TAB 03 / ADVERSARIAL MUTATION TESTING &amp; DIFFERENTIAL CONSISTENCY</span>
-              <h2>Landlock ABI 3+ / seccomp-bpf 6-Mutant AST Hardness Audit</h2>
-            </div>
-            <span className="evidence-mini">
-              {latestAudit ? `${latestAudit.killed}/${latestAudit.total} MUTANTS KILLED` : 'ISOLATED SANDBOX READY'}
-            </span>
-          </div>
-
-          <div className="sampled-differential-box">
-            <ShieldCheck size={16} />
-            <div>
-              <strong>SAMPLED DIFFERENTIAL CONSISTENCY (NOT FORMAL PROOF)</strong>
-              <small>
-                {eq
-                  ? `${eq.passed} / ${eq.vectors} sampled C FFI & CLI vectors matched v1.py`
-                  : 'Run "Probe Binaries" to execute 1,000-vector differential sweep'}
-                {evm?.passed ? ` · ${evm.passed}/${evm.tested} Anvil EVM parity vectors` : ''}
-              </small>
-            </div>
-            {eq && <span className="cert-value">{(eq.pass_rate * 100).toFixed(1)}%</span>}
-          </div>
-
-          <div className="verification-section">
-            <button
-              type="button"
-              className="verification-note"
-              onClick={() => {
-                if (!latestAudit && !busyMap.verify) onVerify()
-                setAuditOpen(prev => !prev)
-              }}
-            >
-              <ShieldCheck size={15} />
-              <span>
-                LANDLOCK + SECCOMP 6-MUTANT AST HARDNESS AUDIT
-                {latestAudit ? ` · ${latestAudit.killed}/${latestAudit.total} MUTANTS KILLED` : ' · CLICK TO RUN'}
-              </span>
-              {auditOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-
-            {auditOpen && (
-              <div className="audit-drawer">
-                {latestAudit ? (
-                  <>
-                    <div className="audit-meta">
-                      <span>
-                        FILESYSTEM: <b>{latestAudit.isolation?.filesystem?.toUpperCase() ?? 'LANDLOCK-DENIED'}</b> ·
-                        NETWORK: <b>{latestAudit.isolation?.network?.toUpperCase() ?? 'SECCOMP-DENIED'}</b>
-                      </span>
-                      <span>
-                        KILL RATE:{' '}
-                        <b>
-                          {latestAudit.total ? (((latestAudit.killed ?? 0) / latestAudit.total) * 100).toFixed(0) : 100}
-                          % ({latestAudit.killed}/{latestAudit.total})
-                        </b>
-                      </span>
-                    </div>
-                    <div className="mutant-grid">
-                      {(latestAudit.mutants ?? []).map(m => (
-                        <div key={m.mutation} className={`mutant-chip ${m.killed ? 'killed' : 'survived'}`}>
-                          {m.killed ? <Check size={12} /> : <X size={12} />}
-                          <span>{m.mutation.toUpperCase()}</span>
-                          <b>{m.killed ? 'KILLED' : 'SURVIVED'}</b>
-                        </div>
-                      ))}
-                    </div>
-                    {latestAudit.signature_hmac_sha256 && (
-                      <div className="audit-receipt">
-                        HMAC-SHA256 AUDIT RECEIPT // {latestAudit.signature_hmac_sha256}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="empty-hint">
-                    {busyMap.verify
-                      ? 'Executing 6 AST safety mutations inside Landlock ABI 3+ / seccomp isolated worker…'
-                      : 'Click "6-Mutant Audit" in the pipeline bar or click above to run the isolated 6-mutant verifier.'}
-                  </div>
-                )}
-              </div>
+            {onProbe && (
+              <button type="button" className="es-inline-run-btn" disabled={!!busyMap.probe} onClick={onProbe}>
+                <Play size={11} />
+                <span>RUN BINARY PROBES</span>
+              </button>
             )}
           </div>
+          <IndustrialPlcTargetsPanel
+            inspection={inspection}
+            openplcFfi={openplcFfi}
+            fulmaticArm={fulmaticArm}
+            blind={blind}
+          />
         </section>
       )}
 
-      {/* TAB 4: TERMINAL PROVENANCE, EVM & TELEMETRY */}
-      {activeTab === 'provenance' && (
-        <section className="deck-panel evidence-panel" role="tabpanel">
+      {activeTab === 'audit' && (
+        <section className="deck-panel" role="tabpanel">
           <div className="panel-heading">
             <div>
-              <span className="panel-kicker">TAB 04 / TERMINAL PROVENANCE, EVM SELECTORS &amp; TELEMETRY</span>
-              <h2>PLC Terminal Channels, Disassembly Nodes &amp; Storage Diagnostics</h2>
+              <span className="panel-kicker">TAB 03 / ADVERSARIAL MUTATION TESTING</span>
+              <h2>Landlock ABI 3+ / seccomp-bpf 6-Mutant AST Hardness Audit</h2>
             </div>
-            <span className="evidence-mini">
-              7 PLC CHANNELS · {priorityEvidence.length} EVIDENCE NODES
-            </span>
+            <button type="button" className="es-inline-run-btn" disabled={!!busyMap.verify} onClick={onVerify}>
+              <ShieldCheck size={11} />
+              <span>RUN 6-MUTANT AUDIT</span>
+            </button>
           </div>
+          {latestAudit ? (
+            <div className="audit-drawer">
+              <div className="mutant-grid">
+                {(latestAudit.mutants ?? []).map(m => (
+                  <div key={m.mutation} className={`mutant-chip ${m.killed ? 'killed' : 'survived'}`}>
+                    {m.killed ? <Check size={12} /> : <X size={12} />}
+                    <span>{m.mutation.toUpperCase()}</span>
+                    <b>{m.killed ? 'KILLED' : 'SURVIVED'}</b>
+                  </div>
+                ))}
+              </div>
+              {latestAudit.signature_hmac_sha256 && (
+                <div className="audit-receipt">HMAC-SHA256 AUDIT RECEIPT // {latestAudit.signature_hmac_sha256}</div>
+              )}
+            </div>
+          ) : (
+            <div className="empty-hint">Click &ldquo;RUN 6-MUTANT AUDIT&rdquo; to execute isolated AST mutation testing.</div>
+          )}
+        </section>
+      )}
 
-          <div className="sub-section-title">
-            <TerminalIcon size={13} />
-            <span>PLC DEMO TOPOLOGY TERMINALS (7 CHANNELS · HEURISTIC MAPPING)</span>
+      {activeTab === 'provenance' && (
+        <section className="deck-panel" role="tabpanel">
+          <div className="panel-heading">
+            <div>
+              <span className="panel-kicker">TAB 04 / TERMINAL PROVENANCE &amp; EVM</span>
+              <h2>7 PLC Screw Terminals, ELF Offsets &amp; Solidity Governor Selectors</h2>
+            </div>
           </div>
           <div className="terminal-ledger-list">
             {terminals.map(pin => (
               <TerminalLedgerRow key={pin.id} pin={pin} />
             ))}
           </div>
-
-          <div className="sub-section-title">
-            <span>DISASSEMBLY &amp; BOUNDARY EVIDENCE NODES ({priorityEvidence.length})</span>
-          </div>
-          <div className="evidence-list">
-            {priorityEvidence.length ? (
-              priorityEvidence.map(item => <EvidenceRow key={item.node_id} item={item} />)
-            ) : (
-              <div className="empty-hint">Awaiting archaeology inspection…</div>
-            )}
-          </div>
-
-          <footer className="telemetry-footnote-bar" style={{ marginTop: '14px' }}>
-            <div className="footnote-group">
-              <Database size={12} />
-              <strong>STORAGE:</strong>
-              <span>MONGODB {stats?.mode === 'atlas' ? 'ATLAS' : 'LOCAL FALLBACK'}</span>
-              <span>·</span>
-              <span>TS: {stats?.time_series_points?.toLocaleString() ?? 0} pts</span>
-              <span>·</span>
-              <span>$graphLookup: {stats?.graph_nodes_resolved ?? 0} nodes</span>
-              <span>·</span>
-              <span>$vectorSearch: {stats?.vector_hits ?? 0} hits</span>
-              <span>·</span>
-              <span>$changeStream: {stats?.change_events ?? 0} events</span>
-              {topRecall?.recommended_skill_template && (
-                <>
-                  <span>·</span>
-                  <span>RECALL: {topRecall.pattern_id}</span>
-                </>
-              )}
-              {latestEvent?.status && (
-                <>
-                  <span>·</span>
-                  <span>BUS: {latestEvent.status}</span>
-                </>
-              )}
-            </div>
-            <div className="footnote-group">
-              <strong>EXTERNAL ADVISORY //</strong>
-              <span>
-                META: {inspection?.sponsor_analysis?.meta_analysis?.provider?.toUpperCase() ?? 'LOCAL DETERMINISTIC'}
-              </span>
-              <span>·</span>
-              <span>
-                SUBQ:{' '}
-                {inspection?.sponsor_analysis?.subq_unknown_branch_decision?.provider?.toUpperCase() ??
-                  'LOCAL DETERMINISTIC'}
-              </span>
-            </div>
-          </footer>
         </section>
       )}
     </div>

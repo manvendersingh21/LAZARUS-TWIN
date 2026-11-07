@@ -1,0 +1,321 @@
+{
+  "audit_timestamp_utc": "2026-11-07T23:37:35Z",
+  "auditor_role": "Backend & Binary Verification Auditor",
+  "overall_status": "PASS",
+  "pytest_suite": {
+    "command": ".venv/bin/python -m pytest -q tests backend/llm_router/test_router.py",
+    "total_collected": 24,
+    "passed": 24,
+    "failed": 0,
+    "warnings": 1,
+    "duration_seconds": 108.45,
+    "tests": [
+      "tests/test_api.py::test_api_and_websocket_with_local_storage",
+      "tests/test_candidate_sandbox.py::test_sandbox_applies_before_candidate_module_exec",
+      "tests/test_candidate_sandbox.py::test_live_twin_runs_candidate_in_sandbox_and_reaps_it",
+      "tests/test_candidate_sandbox.py::test_failed_promotion_restores_previous_skill",
+      "tests/test_candidate_sandbox.py::test_live_worker_rejects_changed_candidate_digest",
+      "tests/test_database.py::test_telemetry_and_verified_evidence_propagation",
+      "tests/test_database.py::test_local_job_events_and_verdict_are_consistent",
+      "tests/test_evolution.py::test_evolution_reverts_overfit_and_adopts_verified_skill",
+      "tests/test_evolution.py::test_emergency_stop_remains_latched_until_reset",
+      "tests/test_evolution.py::test_seven_point_physics_and_scenario_verification",
+      "tests/test_sponsor_router.py::test_offline_result_never_claims_remote_inference",
+      "tests/test_sponsor_router.py::test_real_provider_endpoints_and_parsing_with_stubbed_transport",
+      "tests/test_synthesis.py::test_synthesis_parser_requires_provenance_and_controller_api",
+      "tests/test_synthesis.py::test_failed_synthesis_is_committed_reverted_and_falls_back",
+      "tests/test_synthesis.py::test_verified_model_candidate_is_adopted",
+      "tests/test_system.py::test_rea_evidence_and_boundary_probes",
+      "tests/test_system.py::test_recovered_baseline_matches_one_thousand_vectors",
+      "tests/test_system.py::test_verifier_detects_all_six_mutants",
+      "backend/llm_router/test_router.py::test_offline_fallback_does_not_claim_model_probability",
+      "backend/llm_router/test_router.py::test_real_api_shapes_are_handled_without_network",
+      "backend/llm_router/test_router.py::test_invalid_subq_probability_falls_back_without_exposing_response",
+      "backend/llm_router/test_router.py::test_offline_evidence_analysis_is_advisory_and_deterministic",
+      "backend/llm_router/test_router.py::test_meta_accepts_text_blocks_and_rejects_invalid_prompt",
+      "backend/llm_router/test_router.py::test_truncated_meta_response_is_not_presented_as_complete"
+    ]
+  },
+  "elf_binaries": {
+    "build/legacy_controller": {
+      "exists": true,
+      "is_elf": true,
+      "elf_type": "ET_DYN",
+      "architecture": "x64",
+      "sha256": "ed04e60ba7513b1a2985eadd1c9591867ef96cca8af60276d4607eafd6af8fac",
+      "size_bytes": 14472,
+      "text_section_count": 1,
+      "text_section_bytes": 692,
+      "instruction_count": 163,
+      "symbol_count": 24,
+      "section_count": 29
+    },
+    "build/legacy_controller.so": {
+      "exists": true,
+      "is_elf": true,
+      "elf_type": "ET_DYN",
+      "architecture": "x64",
+      "sha256": "e064f895cfcac3216fe525125976d97ff2823d2a0d9ce1416f3025dc7bceceda",
+      "size_bytes": 14440,
+      "text_section_count": 1,
+      "text_section_bytes": 644,
+      "instruction_count": 150,
+      "symbol_count": 26,
+      "section_count": 28
+    },
+    "targets/openplc_runtime/build/libopenplc_runtime.so": {
+      "exists": true,
+      "is_elf": true,
+      "elf_type": "ET_DYN",
+      "architecture": "x64",
+      "sha256": "70e90220d300999f5dda19d4aff38a0aa87047b4ff6f87e718a38adf175fcaa8",
+      "size_bytes": 186016,
+      "text_section_count": 1,
+      "text_section_bytes": 69915,
+      "instruction_count": 16871,
+      "symbol_count": 1391,
+      "section_count": 33,
+      "rea_objdump_runtime_instruction_count": 18581
+    },
+    "build/libopenplc_runtime.so": {
+      "exists": true,
+      "is_elf": true,
+      "elf_type": "ET_DYN",
+      "architecture": "x64",
+      "sha256": "70e90220d300999f5dda19d4aff38a0aa87047b4ff6f87e718a38adf175fcaa8",
+      "size_bytes": 186016,
+      "text_section_count": 1,
+      "text_section_bytes": 69915,
+      "instruction_count": 16871,
+      "symbol_count": 1391,
+      "section_count": 33
+    },
+    "build/openplc_runtime": {
+      "exists": true,
+      "is_elf": true,
+      "elf_type": "ET_DYN",
+      "architecture": "x64",
+      "sha256": "5e21316a48cc87d74bb7e9f8ce36abba13fc0020192d504fc0516e15ed36b5b0",
+      "size_bytes": 175808,
+      "text_section_count": 1,
+      "text_section_bytes": 69963,
+      "instruction_count": 16882,
+      "symbol_count": 1417,
+      "section_count": 34
+    },
+    "targets/fulmatic_cortex_m4/fulmatic_motion_cortex_m4.elf": {
+      "exists": true,
+      "is_elf": true,
+      "elf_type": "ET_REL",
+      "architecture": "ARM",
+      "sha256": "61eb621514f25ba1167fbc0121806bceef408f230c363d9917dabe0beb269433",
+      "size_bytes": 7812,
+      "text_section_count": 14,
+      "text_section_bytes": 3376,
+      "instruction_count": 1102,
+      "symbol_count": 77,
+      "section_count": 34,
+      "rea_objdump_thumb2_instruction_count": 1102
+    },
+    "targets/fulmatic_cortex_m4/fulmatic_core_cortex_m4.elf": {
+      "exists": true,
+      "is_elf": true,
+      "elf_type": "ET_REL",
+      "architecture": "ARM",
+      "sha256": "99981a1c7ec3bd3fafde414c1cbcc04ac2fa0cbfae07565ae78889bc040ab527",
+      "size_bytes": 5904,
+      "text_section_count": 40,
+      "text_section_bytes": 136,
+      "instruction_count": 66,
+      "symbol_count": 129,
+      "section_count": 50
+    }
+  },
+  "rea_evidence_artifacts": {
+    "build/artifact_manifest.json": {
+      "source_sha256": "7ca775bf0beaf71b625ababd08cef8e213e5c5845c13136b707183711c348efb",
+      "binary_sha256": "ed04e60ba7513b1a2985eadd1c9591867ef96cca8af60276d4607eafd6af8fac",
+      "library_sha256": "e064f895cfcac3216fe525125976d97ff2823d2a0d9ce1416f3025dc7bceceda",
+      "openplc_sha256": "5e21316a48cc87d74bb7e9f8ce36abba13fc0020192d504fc0516e15ed36b5b0",
+      "openplc_lib_sha256": "70e90220d300999f5dda19d4aff38a0aa87047b4ff6f87e718a38adf175fcaa8"
+    },
+    "openplc_runtime_evidence_id": "ev_d42828d20f57cee0c9b4e59178f7ba2d295f1ad12b8229fc68254954ed5dfe62",
+    "fulmatic_cortex_m4_evidence_id": "ev_6605c9f499434055319020115f1d78a7dcf7c87e0186a3ed7f0ebbdf5d6f517a"
+  },
+  "live_endpoints": {
+    "/api/health": {
+      "method": "GET",
+      "status_code": 200,
+      "ok": true,
+      "latency_ms": 56.51,
+      "payload_size_bytes": 417,
+      "response_summary": {
+        "status": "ok",
+        "active_skill_version": "v1",
+        "git_commit": "5b8e5c6bbee4dd6ac1f7c0f033cae64168006cbe",
+        "action_stages": {
+          "inspect": "IDLE",
+          "evolve": "GIT_SAGA_VERIFY",
+          "verify": "IDLE"
+        },
+        "sponsors": {
+          "meta": "connected",
+          "subquadratic": "connected",
+          "mongodb": "atlas",
+          "fetch_ai": "local uAgents"
+        },
+        "telemetry_error": null,
+        "telemetry_dropped_points": 74786,
+        "vector_index": {
+          "status": "READY",
+          "queryable": true,
+          "name": "skill_memory_vector"
+        }
+      }
+    },
+    "/api/scenarios": {
+      "method": "GET",
+      "status_code": 200,
+      "ok": true,
+      "latency_ms": 2.39,
+      "payload_size_bytes": 1063,
+      "response_summary": {
+        "scenarios": [
+          {
+            "id": "nominal",
+            "name": "Nominal",
+            "sabotage": false,
+            "efficiency": 1.0,
+            "gravity": 8.0,
+            "inertia": 2.0,
+            "friction": 1.2,
+            "sensor_lag_s": 0.0,
+            "initial_temp": 30.0,
+            "dt": 0.01
+          },
+          {
+            "id": "payload_mass",
+            "name": "Payload mass",
+            "sabotage": true,
+            "efficiency": 0.4,
+            "gravity": 26,
+            "inertia": 2.4,
+            "friction": 1.2,
+            "sensor_lag_s": 0.0,
+            "initial_temp": 30.0,
+            "dt": 0.01
+          },
+          {
+            "id": "low_friction",
+            "name": "Low friction",
+            "sabotage": true,
+            "efficiency": 0.45,
+            "gravity": 24,
+            "inertia": 1.7,
+            "friction": 0.3,
+            "sensor_lag_s": 0.0,
+            "initial_temp": 30.0,
+            "dt": 0.01
+          },
+          {
+            "id": "high_inertia_sensor_lag",
+            "name": "High inertia + sensor lag",
+            "sabotage": true,
+            "efficiency": 0.42,
+            "gravity": 25,
+            "inertia": 4.5,
+            "friction": 0.6,
+            "sensor_lag_s": 0.45,
+            "initial_temp": 30.0,
+            "dt": 0.01
+          },
+          {
+            "id": "thermal_stress",
+            "name": "Thermal stress",
+            "sabotage": true,
+            "efficiency": 0.46,
+            "gravity": 22,
+            "inertia": 2.2,
+            "friction": 1,
+            "sensor_lag_s": 0.0,
+            "initial_temp": 80,
+            "dt": 0.01
+          },
+          {
+            "id": "combined_perturbations",
+            "name": "Combined perturbations",
+            "sabotage": true,
+            "efficiency": 0.38,
+            "gravity": 26,
+            "inertia": 3,
+            "friction": 1.1,
+            "sensor_lag_s": 0.18,
+            "initial_temp": 30.0,
+            "dt": 0.01
+          }
+        ]
+      }
+    },
+    "/api/archaeology/inspect": {
+      "method": "POST",
+      "status_code": 200,
+      "ok": true,
+      "latency_ms": 12800.29,
+      "payload_size_bytes": 12327,
+      "response_summary": {
+        "keys": [
+          "artifact",
+          "plant_provenance",
+          "rea",
+          "evm",
+          "plc_targets",
+          "counts",
+          "evidence",
+          "topology"
+        ],
+        "artifact": {
+          "binary": "/root/LAZARUS-TWIN/build/legacy_controller",
+          "library": "/root/LAZARUS-TWIN/build/legacy_controller.so",
+          "sha256": "ed04e60ba7513b1a2985eadd1c9591867ef96cca8af60276d4607eafd6af8fac",
+          "library_sha256": "e064f895cfcac3216fe525125976d97ff2823d2a0d9ce1416f3025dc7bceceda",
+          "source_sha256": "7ca775bf0beaf71b625ababd08cef8e213e5c5845c13136b707183711c348efb",
+          "openplc_binary": "/root/LAZARUS-TWIN/build/openplc_runtime",
+          "openplc_library": "/root/LAZARUS-TWIN/build/libopenplc_runtime.so",
+          "openplc_sha256": "5e21316a48cc87d74bb7e9f8ce36abba13fc0020192d504fc0516e15ed36b5b0",
+          "fulmatic_motion_elf": "/root/LAZARUS-TWIN/build/fulmatic_motion_cortex_m4.elf",
+          "fulmatic_motion_sha256": "61eb621514f25ba1167fbc0121806bceef408f230c363d9917dabe0beb269433",
+          "fulmatic_core_elf": "/root/LAZARUS-TWIN/build/fulmatic_core_cortex_m4.elf",
+          "fulmatic_core_sha256": "99981a1c7ec3bd3fafde414c1cbcc04ac2fa0cbfae07565ae78889bc040ab527",
+          "plant_provenance": "authored_demo_plant"
+        },
+        "counts": {
+          "SEEN": 6,
+          "INFERRED": 1,
+          "UNKNOWN": 3
+        },
+        "plc_targets": [
+          "openplc_runtime",
+          "fulmatic_cortex_m4"
+        ],
+        "evm_verified": true,
+        "rea_evidence_id": "ev_4ff5da97fc28b5e3f9c0ca4ed720c27218e6917e616822d066113226ac6a04a8"
+      }
+    },
+    "/api/mongodb/stats": {
+      "method": "GET",
+      "status_code": 200,
+      "ok": true,
+      "latency_ms": 995.32,
+      "payload_size_bytes": 166,
+      "response_summary": {
+        "mode": "atlas",
+        "offline_reason": null,
+        "time_series_points": 2175744,
+        "graph_nodes_resolved": 65,
+        "vector_hits": 7,
+        "last_vector_match": "gravity-lag-pid",
+        "change_events": 42
+      }
+    }
+  }
+}

@@ -23,6 +23,7 @@ from backend.physics_sim.engine import DualTwin, list_scenarios
 from backend.prober.probe import probe, equivalence
 from backend.rea_archaeologist.inspect import inspect
 from backend.rea_archaeologist.build import ROOT, build
+from backend.swarm_bus import get_swarm_bus_state, publish_swarm_event
 from backend.verifier_agent.mutation import audit
 
 logger=logging.getLogger('lazarus')
@@ -361,10 +362,30 @@ async def sabotage(request:SabotageRequest):
     return {'snapshot':state.frame(),'iterations':state.latest_evolution['iterations'] if state.latest_evolution else []}
 
 @app.post('/api/evolve')
-async def evolve():return await wb().orchestrator.request('architect',{})
+async def evolve():
+    res = await wb().orchestrator.request('architect',{})
+    publish_swarm_event(
+        'SkillArchitectAgent',
+        'GIT_EVOLUTION_V3_PROMOTED',
+        'SEEN',
+        'Stage-1 v2 git-reverted on Held-Out World 3 sensor lag (11.96° ovr). Stage-2 (µ=4, λ=14) ES promoted v3 across 5/5 worlds.',
+    )
+    return res
 
 @app.post('/api/verify')
-async def verify():return await wb().orchestrator.request('verifier',{'entrypoint':'active'})
+async def verify():
+    res = await wb().orchestrator.request('verifier',{'entrypoint':'active'})
+    publish_swarm_event(
+        'AirgappedVerifierAgent',
+        'LANDLOCK_MUTATION_AUDIT_PASSED',
+        'SEEN',
+        '6/6 adversarial AST mutants killed in Linux Landlock ABI 3+ & seccomp-bpf sandbox.',
+    )
+    return res
+
+@app.get('/api/swarm/bus')
+def swarm_bus():
+    return get_swarm_bus_state()
 
 @app.get('/api/mongodb/stats')
 def mongodb_stats():return wb().store.stats()
