@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Grid, OrbitControls } from '@react-three/drei'
+import { OrbitControls } from '@react-three/drei'
 import { Suspense, useCallback, useRef, type MutableRefObject } from 'react'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { SingleArmScene, type ViewportHudRefs } from './TwinPhysicsArena'
@@ -12,8 +12,8 @@ export type CameraSyncState = {
   target: [number, number, number]
 }
 
-export const DEFAULT_CAMERA_POSITION: [number, number, number] = [1.45, 1.82, 5.95]
-export const DEFAULT_CAMERA_TARGET: [number, number, number] = [1.4, 1.42, -0.35]
+export const DEFAULT_CAMERA_POSITION: [number, number, number] = [1.45, 1.78, 5.75]
+export const DEFAULT_CAMERA_TARGET: [number, number, number] = [1.4, 1.42, 0]
 
 function SynchronizedCameraRig({
   cameraSync,
@@ -102,49 +102,41 @@ export function Viewport3D({
   const initialTarget = cameraSync?.current?.target ?? DEFAULT_CAMERA_TARGET
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        position: 'relative',
+        backgroundImage:
+          "linear-gradient(180deg, rgba(11, 17, 32, 0.25) 0%, rgba(11, 17, 32, 0.42) 100%), url('/factory-bg.jpg')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center 55%',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
       <Canvas
         shadows
+        gl={{ alpha: true, antialias: true }}
         dpr={[1, 1.5]}
         camera={{ position: initialPos, fov: 38, near: 0.1, far: 100 }}
-        onCreated={({ camera }) => camera.lookAt(...initialTarget)}
+        onCreated={({ camera, gl }) => {
+          gl.setClearColor(0x000000, 0)
+          camera.lookAt(...initialTarget)
+        }}
       >
-        <color attach="background" args={['#0b1120']} />
-        <fog attach="fog" args={['#0b1120', 14, 34]} />
-
-        <ambientLight color="#e2e8f0" intensity={1.35} />
-        <hemisphereLight args={['#f8fafc', '#1e293b', 1.1]} />
+        <ambientLight color="#f1f5f9" intensity={1.55} />
+        <hemisphereLight args={['#ffffff', '#1e293b', 1.2]} />
         <directionalLight
           castShadow
           position={[4.5, 9.5, 7.5]}
-          intensity={2.4}
+          intensity={2.5}
           color="#ffffff"
           shadow-mapSize={[1024, 1024]}
         />
-        <directionalLight position={[-4.5, 6.0, -4.0]} intensity={1.1} color="#38bdf8" />
-        <pointLight position={[1.8, 3.6, 1.5]} intensity={1.8} color="#f8fafc" distance={12} />
+        <directionalLight position={[-4.5, 6.0, -4.0]} intensity={1.2} color="#38bdf8" />
+        <pointLight position={[1.8, 3.6, 2.0]} intensity={1.8} color="#f8fafc" distance={14} />
 
         <Suspense fallback={null}>
-          {/* Deep industrial factory floor plane at y = 0 receiving shadows */}
-          <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-            <planeGeometry args={[48, 48]} />
-            <meshStandardMaterial color="#090d16" roughness={0.48} metalness={0.25} />
-          </mesh>
-
-          <Grid
-            position={[0, 0.002, 0]}
-            args={[32, 32]}
-            cellSize={0.5}
-            cellThickness={0.6}
-            cellColor="#1e293b"
-            sectionSize={2}
-            sectionThickness={1.1}
-            sectionColor="#334155"
-            fadeDistance={24}
-            fadeStrength={1}
-            infiniteGrid
-          />
-
           <SingleArmScene side={side} frame={frame} hudRefs={hudRefs} />
         </Suspense>
 
@@ -183,7 +175,8 @@ export function Viewport3D({
         <div
           ref={topTelemetryRef}
           style={{
-            background: 'rgba(15, 23, 42, 0.92)',
+            background: 'rgba(15, 23, 42, 0.90)',
+            backdropFilter: 'blur(6px)',
             color: '#f8fafc',
             fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)",
             fontSize: '10.5px',
@@ -192,7 +185,7 @@ export function Viewport3D({
             borderRadius: '4px',
             border: '1px solid #334155',
             borderLeft: `3.5px solid ${side === 'left' ? '#f97316' : '#06b6d4'}`,
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
           }}
         >
           TARGET: 30.0° · ACTUAL θ: 30.0° · ERROR Δθ: +0.0° · PWM: 0%
@@ -222,7 +215,7 @@ export function Viewport3D({
             fontWeight: 800,
             padding: '4px 9px',
             borderRadius: '4px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
           }}
         >
           ✓ PASSING TO UPPER BELT (θ = 30.0°)
@@ -230,7 +223,8 @@ export function Viewport3D({
         <div
           ref={conveyorYieldRef}
           style={{
-            background: 'rgba(15, 23, 42, 0.92)',
+            background: 'rgba(15, 23, 42, 0.90)',
+            backdropFilter: 'blur(6px)',
             color: '#e2e8f0',
             fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)",
             fontSize: '9.5px',
@@ -256,7 +250,8 @@ export function Viewport3D({
         <div
           ref={bottomSafetyRef}
           style={{
-            background: 'rgba(15, 23, 42, 0.92)',
+            background: 'rgba(15, 23, 42, 0.90)',
+            backdropFilter: 'blur(6px)',
             color: '#cbd5e1',
             fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)",
             fontSize: '9.5px',
