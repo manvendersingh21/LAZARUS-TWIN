@@ -96,6 +96,71 @@ def probe_openplc_runtime() -> dict:
     finally:
         lib.image_unlock()
 
+    from backend.physics_sim.engine import Arm
+    from backend.physics_sim.worlds import WORLDS
+
+    def _openplc_closed_loop(target, angle, velocity, temp, _state):
+        lib.image_lock()
+        try:
+            g_image.int_input[0][0] = ctypes.c_uint16(int(round(target * 10))).value
+            g_image.int_input[1][0] = ctypes.c_uint16(int(round(angle * 10))).value
+            g_image.int_input[2][0] = ctypes.c_uint16(int(round(velocity * 10))).value
+            g_image.int_input[3][0] = ctypes.c_uint16(int(round(temp * 10))).value
+
+            t_in = ctypes.c_int16(g_image.int_input[0][0]).value / 10.0
+            a_in = ctypes.c_int16(g_image.int_input[1][0]).value / 10.0
+            v_in = ctypes.c_int16(g_image.int_input[2][0]).value / 10.0
+            temp_in = ctypes.c_int16(g_image.int_input[3][0]).value / 10.0
+
+            err = t_in - a_in
+            cooling = 1 if temp_in >= 72.0 else 0
+            estop = 1 if (temp_in >= 88.0 or abs(err) > 45.0) else 0
+            pwm = max(-100.0, min(100.0, 3.0 * err - 0.8 * v_in))
+
+            g_image.int_output[0][0] = ctypes.c_uint16(int(round(pwm * 10))).value
+            g_image.bool_output[0][0][0] = estop
+            g_image.bool_output[0][1][0] = cooling
+            if estop:
+                lib.image_tables_zero_outputs()
+            pwm_out = ctypes.c_int16(g_image.int_output[0][0]).value / 10.0
+            return {
+                "pwm": pwm_out,
+                "estop": estop,
+                "cooling": cooling,
+            }
+        finally:
+            lib.image_unlock()
+
+    nom_arm = Arm(_openplc_closed_loop)
+    nom_arm.sabotage = False
+    nom_over, nom_vel, nom_errs = 0.0, 0.0, []
+    for tick in range(600):
+        snap = nom_arm.step()
+        nom_over = max(nom_over, max(0.0, snap["angle"] - nom_arm.target))
+        nom_vel = max(nom_vel, abs(snap["velocity"]))
+        if tick >= 500:
+            nom_errs.append(abs(snap["tracking_error_deg"]))
+    world_results = []
+    for w in WORLDS:
+        w_arm = Arm(_openplc_closed_loop, w)
+        w_over, w_vel, w_errs = 0.0, 0.0, []
+        for tick in range(600):
+            snap = w_arm.step()
+            w_over = max(w_over, max(0.0, snap["angle"] - w_arm.target))
+            w_vel = max(w_vel, abs(snap["velocity"]))
+            if tick >= 500:
+                w_errs.append(abs(snap["tracking_error_deg"]))
+        st_err = sum(w_errs) / len(w_errs)
+        w_pass = st_err < 2.2 and w_over < 4.5 and not w_arm.estop
+        world_results.append({
+            "world": w.name,
+            "passed": w_pass,
+            "steady_state_error_deg": round(st_err, 3),
+            "peak_overshoot_deg": round(w_over, 3),
+            "peak_velocity_deg_s": round(w_vel, 2),
+            "estop": w_arm.estop,
+        })
+
     caps_ok = (cap_ix == 8 and cap_qx == 8 and cap_iw == 16 and cap_qw == 16)
     join_ok = (int(out_matched.value) == 7 and idx_list == [0, 1, 2, 3, 4, 5, 6])
     zero_ok = (qx0_after == 0 and qx1_after == 0 and qw0_after == 0 and iw0_after == 720)
@@ -108,6 +173,15 @@ def probe_openplc_runtime() -> dict:
         "located_globals_indices": idx_list,
         "zero_outputs_verified": zero_ok,
         "after_zero_outputs": {"%QX0.0": qx0_after, "%QX0.1": qx1_after, "%QW0": qw0_after, "%IW0_preserved": iw0_after},
+        "physics_engine": {
+            "ticks_per_episode": 600,
+            "nominal_steady_error_deg": round(sum(nom_errs) / len(nom_errs), 3),
+            "nominal_peak_overshoot_deg": round(nom_over, 3),
+            "nominal_peak_velocity_deg_s": round(nom_vel, 2),
+            "held_out_worlds_passed": sum(1 for r in world_results if r["passed"]),
+            "held_out_worlds_total": len(world_results),
+            "worlds": world_results,
+        },
     }
 
 
@@ -115,6 +189,8 @@ def probe_fulmatic_cortex_m4() -> dict:
     from elftools.elf.elffile import ELFFile
     from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_MODE_MCLASS
     from unicorn.arm_const import UC_CPU_ARM_CORTEX_M4, UC_ARM_REG_R0, UC_ARM_REG_SP, UC_ARM_REG_LR, UC_ARM_REG_FPEXC, UC_ARM_REG_S0
+    from backend.physics_sim.engine import Arm
+    from backend.physics_sim.worlds import WORLDS
 
     artifacts = build()
     elf_path = artifacts["fulmatic_motion_elf"]
@@ -163,6 +239,47 @@ def probe_fulmatic_cortex_m4() -> dict:
             low = mid
     rec_max = (low + high) / 2.0
 
+    # Closed-loop Physics Engine evaluation with STM32 SRAM velocity clamp [-45.0, +45.0] deg/s
+    mu.mem_write(RAM_BASE + 0x24, struct.pack("<ff", -45.0, 45.0))
+
+    def _fulmatic_closed_loop(target, angle, velocity, temp, _state):
+        err = target - angle
+        if temp >= 88.0 or abs(err) > 45.0:
+            return {"pwm": 0.0, "estop": 1, "cooling": int(temp >= 72.0)}
+        desired_vel = eval_vel(2.5 * err)
+        pwm = max(-100.0, min(100.0, 1.4 * (desired_vel - velocity)))
+        return {"pwm": pwm, "estop": 0, "cooling": int(temp >= 72.0)}
+
+    nom_arm = Arm(_fulmatic_closed_loop)
+    nom_arm.sabotage = False
+    nom_over, nom_vel, nom_errs = 0.0, 0.0, []
+    for tick in range(600):
+        snap = nom_arm.step()
+        nom_over = max(nom_over, max(0.0, snap["angle"] - nom_arm.target))
+        nom_vel = max(nom_vel, abs(snap["velocity"]))
+        if tick >= 500:
+            nom_errs.append(abs(snap["tracking_error_deg"]))
+    world_results = []
+    for w in WORLDS:
+        w_arm = Arm(_fulmatic_closed_loop, w)
+        w_over, w_vel, w_errs = 0.0, 0.0, []
+        for tick in range(600):
+            snap = w_arm.step()
+            w_over = max(w_over, max(0.0, snap["angle"] - w_arm.target))
+            w_vel = max(w_vel, abs(snap["velocity"]))
+            if tick >= 500:
+                w_errs.append(abs(snap["tracking_error_deg"]))
+        st_err = sum(w_errs) / len(w_errs)
+        w_pass = st_err < 2.2 and w_over < 4.5 and not w_arm.estop
+        world_results.append({
+            "world": w.name,
+            "passed": w_pass,
+            "steady_state_error_deg": round(st_err, 3),
+            "peak_overshoot_deg": round(w_over, 3),
+            "peak_velocity_deg_s": round(w_vel, 2),
+            "estop": w_arm.estop,
+        })
+
     passed = (
         math.isclose(samples["5.0"], 15.0, abs_tol=1e-3)
         and math.isclose(samples["60.0"], 60.0, abs_tol=1e-3)
@@ -177,6 +294,15 @@ def probe_fulmatic_cortex_m4() -> dict:
         "samples": samples,
         "recovered_min_velocity": round(rec_min, 6),
         "recovered_max_velocity": round(rec_max, 6),
+        "physics_engine": {
+            "ticks_per_episode": 600,
+            "nominal_steady_error_deg": round(sum(nom_errs) / len(nom_errs), 3),
+            "nominal_peak_overshoot_deg": round(nom_over, 3),
+            "nominal_peak_velocity_deg_s": round(nom_vel, 2),
+            "held_out_worlds_passed": sum(1 for r in world_results if r["passed"]),
+            "held_out_worlds_total": len(world_results),
+            "worlds": world_results,
+        },
     }
 
 

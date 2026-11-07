@@ -30,7 +30,10 @@ def test_rea_evidence_and_boundary_probes():
     assert findings['probes']['openplc_ffi_probe']['passed'] is True
     assert findings['probes']['openplc_ffi_probe']['located_globals_matched'] == 7
     assert findings['probes']['openplc_ffi_probe']['zero_outputs_verified'] is True
+    assert findings['probes']['openplc_ffi_probe']['physics_engine']['held_out_worlds_total'] == 5
     assert findings['probes']['fulmatic_arm_probe']['passed'] is True
+    assert findings['probes']['fulmatic_arm_probe']['physics_engine']['held_out_worlds_total'] == 5
+    assert findings['probes']['fulmatic_arm_probe']['physics_engine']['nominal_peak_overshoot_deg'] < findings['probes']['openplc_ffi_probe']['physics_engine']['nominal_peak_overshoot_deg']
 
 
 def test_recovered_baseline_matches_one_thousand_vectors():
