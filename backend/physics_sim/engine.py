@@ -141,6 +141,8 @@ class DualTwin:
         with self.lock:
             self.left.sabotage=self.right.sabotage=bool(enabled)
             self.scenario_id="payload_mass" if enabled else "nominal"
+            if enabled:
+                self.left.world=self.right.world=World()
             if thermal_spike:self.left.temperature=self.right.temperature=89.5
         return self.snapshot()
 

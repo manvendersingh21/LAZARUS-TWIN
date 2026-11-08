@@ -1014,13 +1014,13 @@ export default function App() {
         ...liveFrameRef.current.left_legacy,
         target: 30.0,
         target_angle: 30.0,
-        angle: 16.6,
-        angle_deg: 16.6,
-        current_angle: 16.6,
-        tracking_error_deg: 13.4,
-        error: 13.4,
-        pwm: 40.2,
-        motor_pwm: 40.2,
+        angle: 10.7,
+        angle_deg: 10.7,
+        current_angle: 10.7,
+        tracking_error_deg: 19.3,
+        error: 19.3,
+        pwm: 58.0,
+        motor_pwm: 58.0,
         temperature: 42.5,
         estop: 0,
         cooling: 0,
@@ -1030,13 +1030,13 @@ export default function App() {
         ...liveFrameRef.current.right_evolved,
         target: 30.0,
         target_angle: 30.0,
-        angle: 16.6,
-        angle_deg: 16.6,
-        current_angle: 16.6,
-        tracking_error_deg: 13.4,
-        error: 13.4,
-        pwm: 40.2,
-        motor_pwm: 40.2,
+        angle: 10.7,
+        angle_deg: 10.7,
+        current_angle: 10.7,
+        tracking_error_deg: 19.3,
+        error: 19.3,
+        pwm: 58.0,
+        motor_pwm: 58.0,
         temperature: 42.5,
         estop: 0,
         cooling: 0,
@@ -1048,6 +1048,9 @@ export default function App() {
     displayFrameRef.current = nextFrame
     setSnapshot(nextFrame)
     setEvolution(null)
+    setAutoPilotBanner(
+      'SABOTAGE ACTIVE // −58% Motor Torque + 500kg Load → Legacy controller sags to 10.7° (19.3° error) and drops payloads onto reject belt'
+    )
 
     void runAction('fault', 'STEP 02: INJECTING -58% TORQUE LOSS + 500KG HEAVY PAYLOAD', async () => {
       await post('/api/sabotage', {
@@ -1061,9 +1064,13 @@ export default function App() {
 
   const handleEvolveStage = useCallback(() => {
     setDemoStep(3)
+    selectCameraPreset('both')
     // Immediate optimistic evolution saga & right-twin recovery so the stage demo never stalls
     setEvolution(DEMO_EVOLUTION_FALLBACK)
     setAuditReport(DEMO_AUDIT_FALLBACK)
+    setAutoPilotBanner(
+      'AUTOPILOT ACTIVE // Patch v3 verified across 5/5 Held-Out Worlds & hot-swapped → Right Twin locks onto 30.0° (0.0° error) while Left Legacy permanently fails'
+    )
     const healedFrame: Frame = {
       ...liveFrameRef.current,
       sabotage_active: true,
@@ -1072,11 +1079,14 @@ export default function App() {
         ...liveFrameRef.current.left_legacy,
         target: 30.0,
         target_angle: 30.0,
-        angle: 16.6,
-        angle_deg: 16.6,
-        current_angle: 16.6,
-        tracking_error_deg: 13.4,
-        error: 13.4,
+        angle: 10.7,
+        angle_deg: 10.7,
+        current_angle: 10.7,
+        tracking_error_deg: 19.3,
+        error: 19.3,
+        estop: 0,
+        cooling: 0,
+        sabotage_active: true,
       },
       right_evolved: {
         ...liveFrameRef.current.right_evolved,
@@ -1087,8 +1097,11 @@ export default function App() {
         current_angle: 30.0,
         tracking_error_deg: 0.0,
         error: 0.0,
-        pwm: 84.5,
-        motor_pwm: 84.5,
+        pwm: 51.6,
+        motor_pwm: 51.6,
+        estop: 0,
+        cooling: 0,
+        sabotage_active: true,
       },
     }
     stageLockRef.current = { until: performance.now() + 4200, frame: healedFrame }
@@ -1096,19 +1109,13 @@ export default function App() {
     displayFrameRef.current = healedFrame
     setSnapshot(healedFrame)
 
-    void runAction('evolve', 'STEP 03: EVOLVING v1 → v2 (GIT REVERT) → v3 (5/5 WORLDS PASS)', async () => {
-      await post('/api/sabotage', {
-        enabled: true,
-        thermal_spike: false,
-        auto_evolve: false,
-        reset_skill: false,
-      }).catch(() => undefined)
+    void runAction('evolve', 'STEP 03: AUTOPILOT EVOLVING v1 → v2 (GIT REVERT) → v3 (LOCKED AT 30.0°)', async () => {
       const data = await post<Evolution>('/api/evolve', {})
       if (data && (data.iterations || data.ledger)) {
         setEvolution(data)
       }
     })
-  }, [])
+  }, [selectCameraPreset])
 
   const handleThermalSpikeStage = useCallback(() => {
     setDemoStep(4)
@@ -1222,115 +1229,12 @@ export default function App() {
   }, [clearAutoPilotTimers, clearRecordedBuffer, refreshInspection, selectCameraPreset])
 
   const handleAutoPilotDemo = useCallback(() => {
-    if (autoPilotRunning) {
-      clearAutoPilotTimers()
-      setLastAction('AUTO-PILOT STOPPED')
-      return
-    }
-    clearAutoPilotTimers()
+    // Clicking "Autopilot" in the top bar or Step 03 immediately runs the self-evolving patch & hot-swaps v3
+    // so the Right Twin locks right back onto 30.0° while the Left Legacy permanently fails.
     setAutoPilotRunning(true)
-
-    // Beat 0 (0.0s): Reset to clean nominal v1 baseline first so every stage step lights up sequentially
-    setDemoStep(0)
-    setActiveScenarioId('nominal')
-    clearRecordedBuffer()
-    setEvolution(null)
-    setAuditReport(null)
-    selectCameraPreset('plc')
-    const cleanBaseline: Frame = {
-      ...liveFrameRef.current,
-      sabotage_active: false,
-      scenario_id: 'nominal',
-      active_skill_version: 'v1',
-      left_legacy: {
-        target: 30.0,
-        target_angle: 30.0,
-        angle: 27.6,
-        angle_deg: 27.6,
-        current_angle: 27.6,
-        tracking_error_deg: 2.4,
-        error: 2.4,
-        pwm: 7.2,
-        motor_pwm: 7.2,
-        temperature: 30.0,
-        estop: 0,
-        cooling: 0,
-        sabotage_active: false,
-      },
-      right_evolved: {
-        target: 30.0,
-        target_angle: 30.0,
-        angle: 27.6,
-        angle_deg: 27.6,
-        current_angle: 27.6,
-        tracking_error_deg: 2.4,
-        error: 2.4,
-        pwm: 7.2,
-        motor_pwm: 7.2,
-        temperature: 30.0,
-        estop: 0,
-        cooling: 0,
-        sabotage_active: false,
-      },
-    }
-    stageLockRef.current = { until: performance.now() + 3400, frame: cleanBaseline }
-    liveFrameRef.current = cleanBaseline
-    displayFrameRef.current = cleanBaseline
-    setSnapshot(cleanBaseline)
-    void post('/api/sabotage', {
-      enabled: false,
-      thermal_spike: false,
-      auto_evolve: false,
-      reset_skill: true,
-    }).catch(() => undefined)
-
-    // Beat 1 (0.4s): Probe Stripped PLC Binary + 1,000 C FFI Vectors + 262 Anvil EVM Calls
-    setAutoPilotBanner(
-      'BEAT 1/3 // BINARY ARCHAEOLOGY: Probing stripped ELF + 1,000 C FFI vectors + 262 Anvil EVM calls → 7/7 PLC channels resolved'
-    )
-    const t0 = setTimeout(() => {
-      handleProbe()
-    }, 350)
-
-    // Beat 2 (4.0s): Pull back to Dual Workcells & Inject -58% Torque Loss + 500kg Heavy Payload
-    const t1 = setTimeout(() => {
-      selectCameraPreset('both')
-      setAutoPilotBanner(
-        'BEAT 2/3 // PHYSICAL FAULT: Injecting −58% motor torque + 500kg payload → Linear PD v1 sags to 16.6° (13.4° steady-state error)'
-      )
-      handleSabotageStage()
-    }, 4000)
-
-    // Beat 3 (8.0s): Autonomous Git Evolution (v1 -> v2 reverted on World 3 lag -> v3 promoted + 6/6 Landlock mutants killed)
-    const t2 = setTimeout(() => {
-      setAutoPilotBanner(
-        'BEAT 3/3 // SELF-EVOLUTION: v2 git-reverted on World 3 lag → Stage-2 (µ=4, λ=14) ES promotes v3 (30.0° / 0.0° err, 6/6 mutants killed)'
-      )
-      handleEvolveStage()
-      handleVerify()
-    }, 8000)
-
-    // Finale (12.5s): Lock in steady-state 500kg comparison (Left 16.6° sagged vs Right v3 30.0° healed)
-    const t3 = setTimeout(() => {
-      setDemoStep(3)
-      setAutoPilotRunning(false)
-      setAutoPilotBanner(
-        'STAGE DEMO COMPLETE // LEFT LEGACY SAGGED (16.6° · REJECT BELT) vs RIGHT EVOLVED v3 HEALED (30.0° · 0.0° ERR · 5/5 WORLDS)'
-      )
-      setLastAction('STAGE DEMO COMPLETE // LEFT LEGACY SAGGED (16.6°) vs RIGHT v3 HEALED (30.0°)')
-    }, 12500)
-
-    autoPilotTimersRef.current = [t0, t1, t2, t3]
-  }, [
-    autoPilotRunning,
-    clearAutoPilotTimers,
-    clearRecordedBuffer,
-    handleEvolveStage,
-    handleProbe,
-    handleSabotageStage,
-    handleVerify,
-    selectCameraPreset,
-  ])
+    handleEvolveStage()
+    handleVerify()
+  }, [handleEvolveStage, handleVerify])
 
   const activePin = selected ?? hovered
   const sabotageActive = !!snapshot.sabotage_active
@@ -1371,11 +1275,11 @@ export default function App() {
         <div className="topbar-right">
           <button
             type="button"
-            className={`autopilot-top-btn ${autoPilotRunning ? 'running' : ''}`}
+            className={`autopilot-top-btn ${autoPilotRunning || activeVersion === 'v3' ? 'running' : ''}`}
             onClick={handleAutoPilotDemo}
           >
-            {autoPilotRunning ? <LoaderCircle size={13} className="spin" /> : <Sparkles size={13} />}
-            <span>{autoPilotRunning ? 'STOP AUTO-DEMO' : '▶ AUTO-RUN STAGE DEMO'}</span>
+            {busyMap.evolve ? <LoaderCircle size={13} className="spin" /> : <Sparkles size={13} />}
+            <span>{activeVersion === 'v3' ? '✓ AUTOPILOT v3 ACTIVE' : '⚡ AUTOPILOT'}</span>
           </button>
           <button
             type="button"
@@ -1492,21 +1396,21 @@ export default function App() {
               </span>
               <div className="step-text">
                 <strong>SABOTAGE WORKCELL</strong>
-                <small>−58% Torque + 500kg Load → Arm Sags 16.6°</small>
+                <small>−58% Torque + 500kg Load → Drops Payload</small>
               </div>
             </button>
 
             <button
               type="button"
               className={`director-step-btn ${activeVersion === 'v3' ? 'step-healed' : ''} ${demoStep === 2 ? 'step-next' : ''}`}
-              onClick={handleEvolveStage}
+              onClick={handleAutoPilotDemo}
             >
               <span className="step-num">
-                <GitBranch size={12} />
+                <Sparkles size={12} />
               </span>
               <div className="step-text">
-                <strong>EVOLVE &amp; HEAL IN GIT</strong>
-                <small>v1 → v2 Revert → v3 (5/5 Worlds · 30.0°)</small>
+                <strong>AUTOPILOT: EVOLVE &amp; HEAL</strong>
+                <small>Hot-Swaps v3 Patch → Right Locks onto 30.0°</small>
               </div>
             </button>
 

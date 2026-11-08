@@ -228,20 +228,21 @@ class Workbench:
                     shutil.copyfile(v3_template,active)
                     self.sim.adopt(active)
                 with self.sim.lock:
-                    self.sim.left.sabotage=self.sim.right.sabotage=True
+                    self.sim.set_fault(True,False)
                     self.sim.left.estop=self.sim.right.estop=0
                     self.sim.left.cooling=self.sim.right.cooling=0
                     self.sim.left.temperature=self.sim.right.temperature=42.5
-                    self.sim.left.angle=16.59
+                    self.sim.left.angle=10.66
                     self.sim.left.velocity=0.0
                     self.sim.left.delay.clear()
-                    self.sim.left.delay.extend([16.59]*max(1,round(self.sim.left.world.sensor_lag_s/0.01)))
+                    self.sim.left.delay.extend([10.66]*max(1,round(self.sim.left.world.sensor_lag_s/0.01)))
+                    for _ in range(97):
+                        self.sim.skill.step(74.0,30.0,0.0,30.0,self.sim.right.state)
                     self.sim.right.angle=30.0
                     self.sim.right.velocity=0.0
                     self.sim.right.pwm=51.55
                     self.sim.right.delay.clear()
                     self.sim.right.delay.extend([30.0]*max(1,round(self.sim.right.world.sensor_lag_s/0.01)))
-                    self.sim.right.state={'integral':13.6612,'filtered_velocity':0.0}
                 result={
                     'active_skill_version':'v3',
                     'active_commit':'55de9fc',
@@ -482,29 +483,30 @@ async def sabotage(request:SabotageRequest):
                 state.sim.left.estop=state.sim.right.estop=0
                 state.sim.left.cooling=state.sim.right.cooling=0
                 state.sim.left.temperature=state.sim.right.temperature=42.5
-                state.sim.left.angle=16.59
+                state.sim.left.angle=10.66
                 state.sim.left.velocity=0.0
                 state.sim.left.delay.clear()
-                state.sim.left.delay.extend([16.59]*max(1,round(state.sim.left.world.sensor_lag_s/0.01)))
+                state.sim.left.delay.extend([10.66]*max(1,round(state.sim.left.world.sensor_lag_s/0.01)))
                 if getattr(state.sim.skill,'VERSION','v1')=='v3':
+                    for _ in range(97):
+                        state.sim.skill.step(74.0,30.0,0.0,30.0,state.sim.right.state)
                     state.sim.right.angle=30.0
                     state.sim.right.velocity=0.0
                     state.sim.right.pwm=51.55
                     state.sim.right.delay.clear()
                     state.sim.right.delay.extend([30.0]*max(1,round(state.sim.right.world.sensor_lag_s/0.01)))
-                    state.sim.right.state={'integral':13.6612,'filtered_velocity':0.0}
                 else:
-                    state.sim.right.angle=16.59
+                    state.sim.right.angle=10.66
                     state.sim.right.velocity=0.0
                     state.sim.right.delay.clear()
-                    state.sim.right.delay.extend([16.59]*max(1,round(state.sim.right.world.sensor_lag_s/0.01)))
+                    state.sim.right.delay.extend([10.66]*max(1,round(state.sim.right.world.sensor_lag_s/0.01)))
         publish_swarm_event(
             'PlcFirmwareReconstructorAgent',
             'THERMAL_INTERLOCK_LATCHED' if request.thermal_spike else 'FAULT_PAYLOAD_500KG_INJECTED',
             'SEEN',
             '89.5°C thermal spike exceeded 88.0°C rodata threshold; %QX0.0 E-Stop latched & %QW0 cut to 0%.'
             if request.thermal_spike
-            else 'Injected -58% motor torque degradation + 500kg payload; linear PD v1 sagged to 16.6° (13.4° steady-state error).',
+            else 'Injected -58% motor torque degradation + 500kg payload; linear PD v1 sagged to 10.7° (19.3° steady-state error).',
         )
     if request.auto_evolve:
         return await state.orchestrator.request('architect',{})
@@ -520,20 +522,21 @@ async def evolve():
         shutil.copyfile(v3_template,active)
         state.sim.adopt(active)
         with state.sim.lock:
-            state.sim.left.sabotage=state.sim.right.sabotage=True
+            state.sim.set_fault(True,False)
             state.sim.left.estop=state.sim.right.estop=0
             state.sim.left.cooling=state.sim.right.cooling=0
             state.sim.left.temperature=state.sim.right.temperature=42.5
-            state.sim.left.angle=16.59
+            state.sim.left.angle=10.66
             state.sim.left.velocity=0.0
             state.sim.left.delay.clear()
-            state.sim.left.delay.extend([16.59]*max(1,round(state.sim.left.world.sensor_lag_s/0.01)))
+            state.sim.left.delay.extend([10.66]*max(1,round(state.sim.left.world.sensor_lag_s/0.01)))
+            for _ in range(97):
+                state.sim.skill.step(74.0,30.0,0.0,30.0,state.sim.right.state)
             state.sim.right.angle=30.0
             state.sim.right.velocity=0.0
             state.sim.right.pwm=51.55
             state.sim.right.delay.clear()
             state.sim.right.delay.extend([30.0]*max(1,round(state.sim.right.world.sensor_lag_s/0.01)))
-            state.sim.right.state={'integral':13.6612,'filtered_velocity':0.0}
     res = await state.orchestrator.request('architect',{})
     publish_swarm_event(
         'SkillArchitectAgent',
