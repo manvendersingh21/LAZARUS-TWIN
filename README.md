@@ -1,6 +1,27 @@
-# LAZARUS-TWIN
+# LAZARUS-TWIN — N+1 Shadow Redundancy from Stripped Legacy PLC Binaries
 
-**LAZARUS-TWIN is an industrial PLC reverse-engineering and safety-gated skill-evolution research workbench.** It inspects and probes two real open-source industrial PLC binaries — the **OpenPLC v4 IEC 61131-3 Runtime** (`elf64-x86-64` + `libopenplc_runtime.so`) and **Fulmatic STM32F407 ARM Cortex-M4 PLC Firmware** (`elf32-littlearm`, EABI5) — alongside an authored **Stripped Closed-Loop Servo Plant** (`legacy_controller`) and EVM governor bytecode (`legacy_governor.hex`), pairing a tri-state evidence ledger (`SEEN` / `INFERRED` / `UNKNOWN`), blind FFI bisection parameter recovery, an autonomous **`(µ=4, λ=14)` Evolutionary Strategy (`312` Closed-Loop Physics Episodes)**, a Linux Landlock + `seccomp-bpf` verification sandbox, an isolated Git commit/revert/hot-swap compensating saga, and **Two Synchronized 3D Viewports (`LEFT: Legacy PLC Controller`, `RIGHT: Autonomously Evolved Controller`)** paired with **Synchronized Time-Series Engineering Graphs**.
+> **The Core Idea in One Sentence:**  
+> We take legacy **`N` industrial systems** running on stripped PLC binaries (where the original source code is lost), extract and reconstruct their control logic offline, and spin up a verified **`N+1` shadow digital-twin controller** right beside the original binary so the factory has zero-downtime failover when hardware degrades.
+
+### Why the Live Demo Runs in Seconds (Offline Pipeline vs. Pre-Warmed Demo Cache)
+
+Extracting machine code from stripped binaries, running thousands of FFI boundary probes, emulating ARM Cortex-M4 instructions, and evolving/verifying a safe `N+1` controller across 312 physics episodes **is a multi-minute offline process** — it cannot happen from scratch in 2 seconds.
+
+In this repository, both the **full multi-minute offline pipeline** and the **pre-warmed live stage cache** are included:
+1. **Stage 1 — Offline Binary Extraction & Reconstruction (`backend/rea_archaeologist/` & `backend/prober/`)**:
+   - Disassembles the stripped binaries (`build/legacy_controller`, `build/libopenplc_runtime.so`, `build/fulmatic_motion_cortex_m4.elf`) via `gnu.objdump` (`rea-agents`).
+   - Runs 30-step `ctypes` FFI bisection + 1,000-vector differential testing + 262 Foundry Anvil EVM calls to reconstruct the baseline Python controller (`backend/evolution_engine/templates/v1.py`).
+   - *Offline runtime: ~25–45 seconds.* Pre-warmed output is stored in `build/prewarmed_probe.json` and `build/rea_evidence.json` for the live UI.
+2. **Stage 2 — Offline `N+1` Controller Evolution & Kernel Sandbox Verification (`backend/evolution_engine/` & `backend/verifier_agent/`)**:
+   - Runs 312 closed-loop physics episodes + 5 Held-Out Physics Worlds + 6 AST safety mutants inside a Linux Landlock + `seccomp-bpf` sandbox to produce the gravity-compensated **`N+1` controller (`v3.py`)**.
+   - *Offline runtime: ~30–60 seconds* (tested end-to-end in `pytest tests/test_evolution.py`).
+3. **Stage 3 — Live `N` vs `N+1` Side-by-Side Twin (`frontend/` & `backend/physics_sim/`)**:
+   - **Left Workcell (`N` — Original Legacy Binary)**: Runs the unpatched stripped C binary (`build/legacy_controller.so`). Under `-58%` motor torque loss + `500kg` load, it sags to `10.5°` and drops payloads.
+   - **Right Workcell (`N+1` — Reconstructed & Patched Shadow System)**: Hot-swaps the verified `v3.py` compensator and holds `30.0°` (`0.0°` error) alongside the legacy system.
+
+---
+
+**LAZARUS-TWIN Technical Overview:** It inspects and probes two real open-source industrial PLC binaries — the **OpenPLC v4 IEC 61131-3 Runtime** (`elf64-x86-64` + `libopenplc_runtime.so`) and **Fulmatic STM32F407 ARM Cortex-M4 PLC Firmware** (`elf32-littlearm`, EABI5) — alongside an authored **Stripped Closed-Loop Servo Plant** (`legacy_controller`) and EVM governor bytecode (`legacy_governor.hex`), pairing a tri-state evidence ledger (`SEEN` / `INFERRED` / `UNKNOWN`), blind FFI bisection parameter recovery, an autonomous **`(µ=4, λ=14)` Evolutionary Strategy (`312` Closed-Loop Physics Episodes)**, a Linux Landlock + `seccomp-bpf` verification sandbox, an isolated Git commit/revert/hot-swap compensating saga, and **Two Synchronized 3D Viewports (`LEFT: Legacy PLC Controller`, `RIGHT: Autonomously Evolved Controller`)** paired with **Synchronized Time-Series Engineering Graphs**.
 
 ### Technical Honesty & Scope Up Front
 
