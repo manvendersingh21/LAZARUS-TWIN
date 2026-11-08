@@ -1286,7 +1286,7 @@ export default function App() {
 
     // Beat 1 (0.4s): Probe Stripped PLC Binary + 1,000 C FFI Vectors + 262 Anvil EVM Calls
     setAutoPilotBanner(
-      'BEAT 1/4 // BINARY ARCHAEOLOGY: Probing stripped ELF + 1,000 C FFI vectors + 262 Anvil EVM calls → 7/7 PLC channels resolved'
+      'BEAT 1/3 // BINARY ARCHAEOLOGY: Probing stripped ELF + 1,000 C FFI vectors + 262 Anvil EVM calls → 7/7 PLC channels resolved'
     )
     const t0 = setTimeout(() => {
       handleProbe()
@@ -1296,7 +1296,7 @@ export default function App() {
     const t1 = setTimeout(() => {
       selectCameraPreset('both')
       setAutoPilotBanner(
-        'BEAT 2/4 // PHYSICAL FAULT: Injecting −58% motor torque + 500kg payload → Linear PD v1 sags to 16.6° (13.4° steady-state error)'
+        'BEAT 2/3 // PHYSICAL FAULT: Injecting −58% motor torque + 500kg payload → Linear PD v1 sags to 16.6° (13.4° steady-state error)'
       )
       handleSabotageStage()
     }, 4000)
@@ -1304,80 +1304,23 @@ export default function App() {
     // Beat 3 (8.0s): Autonomous Git Evolution (v1 -> v2 reverted on World 3 lag -> v3 promoted + 6/6 Landlock mutants killed)
     const t2 = setTimeout(() => {
       setAutoPilotBanner(
-        'BEAT 3/4 // SELF-EVOLUTION: v2 git-reverted on World 3 lag → Stage-2 (µ=4, λ=14) ES promotes v3 (30.0° / 0.0° err, 6/6 mutants killed)'
+        'BEAT 3/3 // SELF-EVOLUTION: v2 git-reverted on World 3 lag → Stage-2 (µ=4, λ=14) ES promotes v3 (30.0° / 0.0° err, 6/6 mutants killed)'
       )
       handleEvolveStage()
       handleVerify()
     }, 8000)
 
-    // Beat 4 (12.5s): 89.5°C Core Thermal Spike Hardware Interlock Proof (%QX0.0 E-Stop Latched)
+    // Finale (12.5s): Lock in steady-state 500kg comparison (Left 16.6° sagged vs Right v3 30.0° healed)
     const t3 = setTimeout(() => {
-      setAutoPilotBanner(
-        'BEAT 4/4 // HARDWARE INTERLOCK PROOF: 89.5°C thermal spike trips 88.0°C rodata cutoff → %QX0.0 E-Stop latched & PWM cut to 0%'
-      )
-      handleThermalSpikeStage()
-    }, 12500)
-
-    // Finale (16.0s): Clear thermal spike back to steady-state 500kg comparison (Left 16.6° sagged vs Right v3 30.0° healed)
-    const t4 = setTimeout(() => {
       setDemoStep(3)
-      const finaleFrame: Frame = {
-        ...liveFrameRef.current,
-        sabotage_active: true,
-        active_skill_version: 'v3',
-        left_legacy: {
-          ...liveFrameRef.current.left_legacy,
-          target: 30.0,
-          target_angle: 30.0,
-          angle: 16.6,
-          angle_deg: 16.6,
-          current_angle: 16.6,
-          tracking_error_deg: 13.4,
-          error: 13.4,
-          temperature: 42.5,
-          temp: 42.5,
-          core_temp_c: 42.5,
-          estop: 0,
-          cooling: 0,
-          pwm: 40.2,
-          motor_pwm: 40.2,
-        },
-        right_evolved: {
-          ...liveFrameRef.current.right_evolved,
-          target: 30.0,
-          target_angle: 30.0,
-          angle: 30.0,
-          angle_deg: 30.0,
-          current_angle: 30.0,
-          tracking_error_deg: 0.0,
-          error: 0.0,
-          temperature: 42.5,
-          temp: 42.5,
-          core_temp_c: 42.5,
-          estop: 0,
-          cooling: 0,
-          pwm: 51.6,
-          motor_pwm: 51.6,
-        },
-      }
-      stageLockRef.current = { until: performance.now() + 3000, frame: finaleFrame }
-      liveFrameRef.current = finaleFrame
-      displayFrameRef.current = finaleFrame
-      setSnapshot(finaleFrame)
-      void post('/api/sabotage', {
-        enabled: true,
-        thermal_spike: false,
-        auto_evolve: false,
-        reset_skill: false,
-      }).catch(() => undefined)
       setAutoPilotRunning(false)
       setAutoPilotBanner(
-        'STAGE DEMO COMPLETE // LEFT LEGACY SAGGED (16.6°) vs RIGHT EVOLVED v3 HEALED (30.0° · 5/5 WORLDS · 6/6 MUTANTS)'
+        'STAGE DEMO COMPLETE // LEFT LEGACY SAGGED (16.6° · REJECT BELT) vs RIGHT EVOLVED v3 HEALED (30.0° · 0.0° ERR · 5/5 WORLDS)'
       )
       setLastAction('STAGE DEMO COMPLETE // LEFT LEGACY SAGGED (16.6°) vs RIGHT v3 HEALED (30.0°)')
-    }, 16000)
+    }, 12500)
 
-    autoPilotTimersRef.current = [t0, t1, t2, t3, t4]
+    autoPilotTimersRef.current = [t0, t1, t2, t3]
   }, [
     autoPilotRunning,
     clearAutoPilotTimers,
@@ -1385,7 +1328,6 @@ export default function App() {
     handleEvolveStage,
     handleProbe,
     handleSabotageStage,
-    handleThermalSpikeStage,
     handleVerify,
     selectCameraPreset,
   ])

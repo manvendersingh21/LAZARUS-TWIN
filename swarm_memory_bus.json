@@ -1,14 +1,14 @@
 {
   "bus_id": "lazarus-twin-swarm-bus-v1",
   "protocol": "Fetch.ai uAgents + MongoDB Airgapped Verification Bus + Shared Swarm Memory",
-  "updated_at": "2026-11-07T23:58:14Z",
+  "updated_at": "2026-11-08T00:16:11Z",
   "agents": [
     {
       "agent_id": "agent://archaeologist-prober-01",
       "name": "ArchaeologistProberAgent",
       "role": "ELF Disassembly (morluto/rea) & 30-Step FFI Boundary Bisection",
       "status": "ONLINE",
-      "last_heartbeat": "2026-11-07T23:58:14Z",
+      "last_heartbeat": "2026-11-08T00:16:10Z",
       "metrics": {
         "binaries_probed": 3,
         "c_vectors_verified": "1000/1000 (100.0%)",
@@ -21,7 +21,7 @@
       "name": "PlcFirmwareReconstructorAgent",
       "role": "OpenPLC v4 IEC 61131-3 FFI & Fulmatic STM32F407 ARM Cortex-M4 Unicorn VFPv4 Prober",
       "status": "ONLINE",
-      "last_heartbeat": "2026-11-07T23:58:14Z",
+      "last_heartbeat": "2026-11-08T00:16:11Z",
       "metrics": {
         "openplc_located_globals": "7/7 (%IW0..%QX0.1)",
         "cortex_m4_thumb2_instr": 1102,
@@ -33,7 +33,7 @@
       "name": "SkillArchitectAgent",
       "role": "312-Episode (\u00b5=4, \u03bb=14) Evolutionary Strategy & Git Rollback/Promotion Controller",
       "status": "ONLINE",
-      "last_heartbeat": "2026-11-07T23:51:53Z",
+      "last_heartbeat": "2026-11-08T00:16:11Z",
       "metrics": {
         "episodes_simulated": 312,
         "loss_reduction": "355.15 -> 2.77 (-99.2%)",
@@ -46,7 +46,7 @@
       "name": "AirgappedVerifierAgent",
       "role": "Linux Landlock ABI 3+ & seccomp-bpf 6-Mutant AST Hardness Auditor",
       "status": "ONLINE",
-      "last_heartbeat": "2026-11-07T23:31:30Z",
+      "last_heartbeat": "2026-11-08T00:03:58Z",
       "metrics": {
         "ast_mutants_killed": "6/6 (100%)",
         "filesystem_sandbox": "landlock-abi-v3-denied",
@@ -82,84 +82,204 @@
   },
   "events": [
     {
+      "id": "evt-71457",
+      "timestamp": "2026-11-08T00:16:11Z",
+      "agent": "SkillArchitectAgent",
+      "topic": "GIT_EVOLUTION_V3_PROMOTED",
+      "state": "SEEN",
+      "summary": "Stage-1 v2 git-reverted on Held-Out World 3 sensor lag (11.96\u00b0 ovr). Stage-2 (\u00b5=4, \u03bb=14) ES promoted v3 across 5/5 worlds."
+    },
+    {
+      "id": "evt-71151",
+      "timestamp": "2026-11-08T00:16:11Z",
+      "agent": "PlcFirmwareReconstructorAgent",
+      "topic": "FAULT_PAYLOAD_500KG_INJECTED",
+      "state": "SEEN",
+      "summary": "Injected -58% motor torque degradation + 500kg payload; linear PD v1 sagged to 16.6\u00b0 (13.4\u00b0 steady-state error)."
+    },
+    {
+      "id": "evt-70546",
+      "timestamp": "2026-11-08T00:16:10Z",
+      "agent": "ArchaeologistProberAgent",
+      "topic": "FFI_BISECTION_CONVERGED",
+      "state": "SEEN",
+      "summary": "Probed 3 ELF binaries + 1,000/1,000 C FFI vectors + 262/262 Anvil EVM calls (88.0\u00b0C E-stop, 72.0\u00b0C cooling, \u00b145.0\u00b0 runaway)."
+    },
+    {
+      "id": "evt-69741",
+      "timestamp": "2026-11-08T00:16:09Z",
+      "agent": "ArchaeologistProberAgent",
+      "topic": "FFI_BISECTION_CONVERGED",
+      "state": "SEEN",
+      "summary": "Probed 3 ELF binaries + 1,000/1,000 C FFI vectors + 262/262 Anvil EVM calls (88.0\u00b0C E-stop, 72.0\u00b0C cooling, \u00b145.0\u00b0 runaway)."
+    },
+    {
+      "id": "evt-22850",
+      "timestamp": "2026-11-08T00:13:42Z",
+      "agent": "ArchaeologistProberAgent",
+      "topic": "FFI_BISECTION_CONVERGED",
+      "state": "SEEN",
+      "summary": "Probed 3 ELF binaries + 1,000/1,000 C FFI vectors + 262/262 Anvil EVM calls (88.0\u00b0C E-stop, 72.0\u00b0C cooling, \u00b145.0\u00b0 runaway)."
+    },
+    {
+      "id": "evt-39604",
+      "timestamp": "2026-11-08T00:12:19Z",
+      "agent": "ArchaeologistProberAgent",
+      "topic": "FFI_BISECTION_CONVERGED",
+      "state": "SEEN",
+      "summary": "Probed 3 ELF binaries + 1,000/1,000 C FFI vectors + 262/262 Anvil EVM calls (88.0\u00b0C E-stop, 72.0\u00b0C cooling, \u00b145.0\u00b0 runaway)."
+    },
+    {
+      "id": "evt-16169",
+      "timestamp": "2026-11-08T00:11:56Z",
+      "agent": "PlcFirmwareReconstructorAgent",
+      "topic": "THERMAL_INTERLOCK_LATCHED",
+      "state": "SEEN",
+      "summary": "89.5\u00b0C thermal spike exceeded 88.0\u00b0C rodata threshold; %QX0.0 E-Stop latched & %QW0 cut to 0%."
+    },
+    {
+      "id": "evt-34844",
+      "timestamp": "2026-11-08T00:08:54Z",
+      "agent": "SkillArchitectAgent",
+      "topic": "GIT_EVOLUTION_V3_PROMOTED",
+      "state": "SEEN",
+      "summary": "Stage-1 v2 git-reverted on Held-Out World 3 sensor lag (11.96\u00b0 ovr). Stage-2 (\u00b5=4, \u03bb=14) ES promoted v3 across 5/5 worlds."
+    },
+    {
+      "id": "evt-59368",
+      "timestamp": "2026-11-08T00:07:39Z",
+      "agent": "PlcFirmwareReconstructorAgent",
+      "topic": "FAULT_PAYLOAD_500KG_INJECTED",
+      "state": "SEEN",
+      "summary": "Injected -58% motor torque degradation + 500kg payload; linear PD v1 sagged to 16.6\u00b0 (13.4\u00b0 steady-state error)."
+    },
+    {
+      "id": "evt-58986",
+      "timestamp": "2026-11-08T00:07:38Z",
+      "agent": "PlcFirmwareReconstructorAgent",
+      "topic": "THERMAL_INTERLOCK_LATCHED",
+      "state": "SEEN",
+      "summary": "89.5\u00b0C thermal spike exceeded 88.0\u00b0C rodata threshold; %QX0.0 E-Stop latched & %QW0 cut to 0%."
+    },
+    {
+      "id": "evt-77607",
+      "timestamp": "2026-11-08T00:04:37Z",
+      "agent": "SkillArchitectAgent",
+      "topic": "GIT_EVOLUTION_V3_PROMOTED",
+      "state": "SEEN",
+      "summary": "Stage-1 v2 git-reverted on Held-Out World 3 sensor lag (11.96\u00b0 ovr). Stage-2 (\u00b5=4, \u03bb=14) ES promoted v3 across 5/5 worlds."
+    },
+    {
+      "id": "evt-63836",
+      "timestamp": "2026-11-08T00:04:23Z",
+      "agent": "ArchaeologistProberAgent",
+      "topic": "FFI_BISECTION_CONVERGED",
+      "state": "SEEN",
+      "summary": "Probed 3 ELF binaries + 1,000/1,000 C FFI vectors + 262/262 Anvil EVM calls (88.0\u00b0C E-stop, 72.0\u00b0C cooling, \u00b145.0\u00b0 runaway)."
+    },
+    {
+      "id": "evt-45982",
+      "timestamp": "2026-11-08T00:04:05Z",
+      "agent": "PlcFirmwareReconstructorAgent",
+      "topic": "FAULT_PAYLOAD_500KG_INJECTED",
+      "state": "SEEN",
+      "summary": "Injected -58% motor torque degradation + 500kg payload; linear PD v1 sagged to 16.6\u00b0 (13.4\u00b0 steady-state error)."
+    },
+    {
+      "id": "evt-42818",
+      "timestamp": "2026-11-08T00:04:02Z",
+      "agent": "PlcFirmwareReconstructorAgent",
+      "topic": "THERMAL_INTERLOCK_LATCHED",
+      "state": "SEEN",
+      "summary": "89.5\u00b0C thermal spike exceeded 88.0\u00b0C rodata threshold; %QX0.0 E-Stop latched & %QW0 cut to 0%."
+    },
+    {
+      "id": "evt-41562",
+      "timestamp": "2026-11-08T00:04:01Z",
+      "agent": "SkillArchitectAgent",
+      "topic": "GIT_EVOLUTION_V3_PROMOTED",
+      "state": "SEEN",
+      "summary": "Stage-1 v2 git-reverted on Held-Out World 3 sensor lag (11.96\u00b0 ovr). Stage-2 (\u00b5=4, \u03bb=14) ES promoted v3 across 5/5 worlds."
+    },
+    {
+      "id": "evt-38528",
+      "timestamp": "2026-11-08T00:03:58Z",
+      "agent": "AirgappedVerifierAgent",
+      "topic": "LANDLOCK_MUTATION_AUDIT_PASSED",
+      "state": "SEEN",
+      "summary": "6/6 adversarial AST mutants killed in Linux Landlock ABI 3+ & seccomp-bpf sandbox."
+    },
+    {
+      "id": "evt-37933",
+      "timestamp": "2026-11-08T00:03:57Z",
+      "agent": "PlcFirmwareReconstructorAgent",
+      "topic": "FAULT_PAYLOAD_500KG_INJECTED",
+      "state": "SEEN",
+      "summary": "Injected -58% motor torque degradation + 500kg payload; linear PD v1 sagged to 16.6\u00b0 (13.4\u00b0 steady-state error)."
+    },
+    {
+      "id": "evt-34007",
+      "timestamp": "2026-11-08T00:03:54Z",
+      "agent": "PlcFirmwareReconstructorAgent",
+      "topic": "FAULT_PAYLOAD_500KG_INJECTED",
+      "state": "SEEN",
+      "summary": "Injected -58% motor torque degradation + 500kg payload; linear PD v1 sagged to 16.6\u00b0 (13.4\u00b0 steady-state error)."
+    },
+    {
+      "id": "evt-26977",
+      "timestamp": "2026-11-08T00:03:46Z",
+      "agent": "ArchaeologistProberAgent",
+      "topic": "FFI_BISECTION_CONVERGED",
+      "state": "SEEN",
+      "summary": "Probed 3 ELF binaries + 1,000/1,000 C FFI vectors + 262/262 Anvil EVM calls (88.0\u00b0C E-stop, 72.0\u00b0C cooling, \u00b145.0\u00b0 runaway)."
+    },
+    {
+      "id": "evt-06697",
+      "timestamp": "2026-11-08T00:03:26Z",
+      "agent": "PlcFirmwareReconstructorAgent",
+      "topic": "FAULT_PAYLOAD_500KG_INJECTED",
+      "state": "SEEN",
+      "summary": "Injected -58% motor torque degradation + 500kg payload; linear PD v1 sagged to 16.6\u00b0 (13.4\u00b0 steady-state error)."
+    },
+    {
+      "id": "evt-03360",
+      "timestamp": "2026-11-08T00:03:23Z",
+      "agent": "PlcFirmwareReconstructorAgent",
+      "topic": "THERMAL_INTERLOCK_LATCHED",
+      "state": "SEEN",
+      "summary": "89.5\u00b0C thermal spike exceeded 88.0\u00b0C rodata threshold; %QX0.0 E-Stop latched & %QW0 cut to 0%."
+    },
+    {
+      "id": "evt-99421",
+      "timestamp": "2026-11-08T00:03:19Z",
+      "agent": "AirgappedVerifierAgent",
+      "topic": "LANDLOCK_MUTATION_AUDIT_PASSED",
+      "state": "SEEN",
+      "summary": "6/6 adversarial AST mutants killed in Linux Landlock ABI 3+ & seccomp-bpf sandbox."
+    },
+    {
+      "id": "evt-98600",
+      "timestamp": "2026-11-08T00:03:18Z",
+      "agent": "PlcFirmwareReconstructorAgent",
+      "topic": "FAULT_PAYLOAD_500KG_INJECTED",
+      "state": "SEEN",
+      "summary": "Injected -58% motor torque degradation + 500kg payload; linear PD v1 sagged to 16.6\u00b0 (13.4\u00b0 steady-state error)."
+    },
+    {
+      "id": "evt-94717",
+      "timestamp": "2026-11-08T00:03:14Z",
+      "agent": "PlcFirmwareReconstructorAgent",
+      "topic": "FAULT_PAYLOAD_500KG_INJECTED",
+      "state": "SEEN",
+      "summary": "Injected -58% motor torque degradation + 500kg payload; linear PD v1 sagged to 16.6\u00b0 (13.4\u00b0 steady-state error)."
+    },
+    {
       "id": "evt-94266",
       "timestamp": "2026-11-07T23:58:14Z",
       "agent": "PlcFirmwareReconstructorAgent",
       "topic": "THERMAL_INTERLOCK_LATCHED",
       "state": "SEEN",
       "summary": "89.5\u00b0C thermal spike exceeded 88.0\u00b0C rodata threshold; %QX0.0 E-Stop latched & %QW0 cut to 0%."
-    },
-    {
-      "id": "evt-94145",
-      "timestamp": "2026-11-07T23:58:14Z",
-      "agent": "ArchaeologistProberAgent",
-      "topic": "FFI_BISECTION_CONVERGED",
-      "state": "SEEN",
-      "summary": "Probed 3 ELF binaries + 1,000/1,000 C FFI vectors + 262/262 Anvil EVM calls (88.0\u00b0C E-stop, 72.0\u00b0C cooling, \u00b145.0\u00b0 runaway)."
-    },
-    {
-      "id": "evt-87665",
-      "timestamp": "2026-11-07T23:53:07Z",
-      "agent": "PlcFirmwareReconstructorAgent",
-      "topic": "THERMAL_INTERLOCK_LATCHED",
-      "state": "SEEN",
-      "summary": "89.5\u00b0C thermal spike exceeded 88.0\u00b0C rodata threshold; %QX0.0 E-Stop latched & %QW0 cut to 0%."
-    },
-    {
-      "id": "evt-87389",
-      "timestamp": "2026-11-07T23:53:07Z",
-      "agent": "ArchaeologistProberAgent",
-      "topic": "FFI_BISECTION_CONVERGED",
-      "state": "SEEN",
-      "summary": "Probed 3 ELF binaries + 1,000/1,000 C FFI vectors + 262/262 Anvil EVM calls (88.0\u00b0C E-stop, 72.0\u00b0C cooling, \u00b145.0\u00b0 runaway)."
-    },
-    {
-      "id": "evt-13311",
-      "timestamp": "2026-11-07T23:51:53Z",
-      "agent": "SkillArchitectAgent",
-      "topic": "GIT_EVOLUTION_V3_PROMOTED",
-      "state": "SEEN",
-      "summary": "Stage-1 v2 git-reverted on Held-Out World 3 sensor lag (11.96\u00b0 ovr). Stage-2 (\u00b5=4, \u03bb=14) ES promoted v3 across 5/5 worlds."
-    },
-    {
-      "id": "evt-05406",
-      "timestamp": "2026-11-07T23:50:05Z",
-      "agent": "SkillArchitectAgent",
-      "topic": "GIT_EVOLUTION_V3_PROMOTED",
-      "state": "SEEN",
-      "summary": "Stage-1 v2 git-reverted on Held-Out World 3 sensor lag (11.96\u00b0 ovr). Stage-2 (\u00b5=4, \u03bb=14) ES promoted v3 across 5/5 worlds."
-    },
-    {
-      "id": "evt-001",
-      "timestamp": "2026-11-07T23:31:30Z",
-      "agent": "ArchaeologistProberAgent",
-      "topic": "REA_DISASSEMBLY_INGESTED",
-      "state": "SEEN",
-      "summary": "Disassembled stripped build/legacy_controller (83 x86-64 instructions), libopenplc_runtime.so (4,712 instructions), and fulmatic_motion_cortex_m4.elf (1,102 Thumb-2 VFPv4 instructions)."
-    },
-    {
-      "id": "evt-002",
-      "timestamp": "2026-11-07T23:31:30Z",
-      "agent": "PlcFirmwareReconstructorAgent",
-      "topic": "FFI_BISECTION_CONVERGED",
-      "state": "SEEN",
-      "summary": "30-step FFI boundary bisection recovered 88.0\u00b0C thermal E-stop (\u00b11.86e-8\u00b0C), 72.0\u00b0C cooling relay, \u00b145.0\u00b0 runaway guard, and kp=3.0, kd=-0.8 PD gains across 1,000/1,000 vectors."
-    },
-    {
-      "id": "evt-003",
-      "timestamp": "2026-11-07T23:31:30Z",
-      "agent": "SkillArchitectAgent",
-      "topic": "GIT_EVOLUTION_V3_PROMOTED",
-      "state": "SEEN",
-      "summary": "Stage-1 v2 reverted via git revert after failing Held-Out World 3 (0.45s sensor lag, 11.96\u00b0 overshoot). Stage-2 (\u00b5=4, \u03bb=14) ES converged over 312 episodes (loss 355.15 -> 2.77) and promoted v3 across 5/5 Held-Out Worlds."
-    },
-    {
-      "id": "evt-004",
-      "timestamp": "2026-11-07T23:31:30Z",
-      "agent": "AirgappedVerifierAgent",
-      "topic": "LANDLOCK_MUTATION_AUDIT_PASSED",
-      "state": "SEEN",
-      "summary": "Executed 6 adversarial AST mutations inside Linux Landlock ABI 3+ & seccomp-bpf sandbox. 6/6 mutants killed; HMAC-SHA256 receipt signed."
     }
   ]
 }

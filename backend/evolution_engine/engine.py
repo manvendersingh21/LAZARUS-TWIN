@@ -433,6 +433,8 @@ class EvolutionEngine:
                         self.sim.right.angle=30.0
                         self.sim.right.velocity=0.0
                         self.sim.right.pwm=51.55
+                        self.sim.right.delay.clear()
+                        self.sim.right.delay.extend([30.0]*max(1,round(self.sim.right.world.sensor_lag_s/0.01)))
                         self.sim.right.state={"integral":35.4855,"filtered_velocity":0.0}
                     else:
                         self.sim.right.state={}
