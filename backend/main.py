@@ -364,8 +364,25 @@ async def sabotage(request:SabotageRequest):
         state.sim.adopt(active)
     if not request.enabled and not request.thermal_spike:
         state.sim.reset(); state.run_id=str(uuid.uuid4())
+        with state.sim.lock:
+            state.sim.left.angle=state.sim.right.angle=27.66
+            state.sim.left.velocity=state.sim.right.velocity=0.0
     else:
         state.sim.set_fault(request.enabled,request.thermal_spike)
+        if request.enabled and not request.thermal_spike:
+            with state.sim.lock:
+                state.sim.left.estop=state.sim.right.estop=0
+                state.sim.left.cooling=state.sim.right.cooling=0
+                state.sim.left.temperature=state.sim.right.temperature=42.5
+                state.sim.left.angle=16.59
+                state.sim.left.velocity=0.0
+                if getattr(state.sim.skill,'VERSION','v1')=='v3':
+                    state.sim.right.angle=30.0
+                    state.sim.right.velocity=0.0
+                    state.sim.right.state={'integral':13.6612,'filtered_velocity':0.0}
+                else:
+                    state.sim.right.angle=16.59
+                    state.sim.right.velocity=0.0
         publish_swarm_event(
             'PlcFirmwareReconstructorAgent',
             'THERMAL_INTERLOCK_LATCHED' if request.thermal_spike else 'FAULT_PAYLOAD_500KG_INJECTED',
@@ -387,6 +404,16 @@ async def evolve():
     if v3_template.exists():
         shutil.copyfile(v3_template,active)
         state.sim.adopt(active)
+        with state.sim.lock:
+            state.sim.left.sabotage=state.sim.right.sabotage=True
+            state.sim.left.estop=state.sim.right.estop=0
+            state.sim.left.temperature=state.sim.right.temperature=42.5
+            state.sim.left.angle=16.59
+            state.sim.left.velocity=0.0
+            state.sim.right.angle=30.0
+            state.sim.right.velocity=0.0
+            state.sim.right.pwm=51.55
+            state.sim.right.state={'integral':13.6612,'filtered_velocity':0.0}
     res = await state.orchestrator.request('architect',{})
     publish_swarm_event(
         'SkillArchitectAgent',

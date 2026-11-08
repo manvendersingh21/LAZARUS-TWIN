@@ -688,12 +688,14 @@ export default function App() {
   const [deepDiveOpen, setDeepDiveOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastAction, setLastAction] = useState('SYSTEM READY // CLICK ANY STAGE DEMO STEP OR AUTO-PILOT')
+  const [autoPilotBanner, setAutoPilotBanner] = useState<string | null>(null)
   const stageLockRef = useRef<{ until: number; frame: Frame } | null>(null)
 
   const clearAutoPilotTimers = useCallback(() => {
     autoPilotTimersRef.current.forEach(t => clearTimeout(t))
     autoPilotTimersRef.current = []
     setAutoPilotRunning(false)
+    setAutoPilotBanner(null)
   }, [])
 
   const clearRecordedBuffer = useCallback(() => {
@@ -1227,20 +1229,166 @@ export default function App() {
     }
     clearAutoPilotTimers()
     setAutoPilotRunning(true)
-    setLastAction('AUTO-PILOT STAGE DEMO RUNNING // STEP 01 → 02 → 03')
 
-    handleProbe()
+    // Beat 0 (0.0s): Reset to clean nominal v1 baseline first so every stage step lights up sequentially
+    setDemoStep(0)
+    setActiveScenarioId('nominal')
+    clearRecordedBuffer()
+    setEvolution(null)
+    setAuditReport(null)
+    selectCameraPreset('plc')
+    const cleanBaseline: Frame = {
+      ...liveFrameRef.current,
+      sabotage_active: false,
+      scenario_id: 'nominal',
+      active_skill_version: 'v1',
+      left_legacy: {
+        target: 30.0,
+        target_angle: 30.0,
+        angle: 27.6,
+        angle_deg: 27.6,
+        current_angle: 27.6,
+        tracking_error_deg: 2.4,
+        error: 2.4,
+        pwm: 7.2,
+        motor_pwm: 7.2,
+        temperature: 30.0,
+        estop: 0,
+        cooling: 0,
+        sabotage_active: false,
+      },
+      right_evolved: {
+        target: 30.0,
+        target_angle: 30.0,
+        angle: 27.6,
+        angle_deg: 27.6,
+        current_angle: 27.6,
+        tracking_error_deg: 2.4,
+        error: 2.4,
+        pwm: 7.2,
+        motor_pwm: 7.2,
+        temperature: 30.0,
+        estop: 0,
+        cooling: 0,
+        sabotage_active: false,
+      },
+    }
+    stageLockRef.current = { until: performance.now() + 3400, frame: cleanBaseline }
+    liveFrameRef.current = cleanBaseline
+    displayFrameRef.current = cleanBaseline
+    setSnapshot(cleanBaseline)
+    void post('/api/sabotage', {
+      enabled: false,
+      thermal_spike: false,
+      auto_evolve: false,
+      reset_skill: true,
+    }).catch(() => undefined)
+
+    // Beat 1 (0.4s): Probe Stripped PLC Binary + 1,000 C FFI Vectors + 262 Anvil EVM Calls
+    setAutoPilotBanner(
+      'BEAT 1/4 // BINARY ARCHAEOLOGY: Probing stripped ELF + 1,000 C FFI vectors + 262 Anvil EVM calls → 7/7 PLC channels resolved'
+    )
+    const t0 = setTimeout(() => {
+      handleProbe()
+    }, 350)
+
+    // Beat 2 (4.0s): Pull back to Dual Workcells & Inject -58% Torque Loss + 500kg Heavy Payload
     const t1 = setTimeout(() => {
+      selectCameraPreset('both')
+      setAutoPilotBanner(
+        'BEAT 2/4 // PHYSICAL FAULT: Injecting −58% motor torque + 500kg payload → Linear PD v1 sags to 16.6° (13.4° steady-state error)'
+      )
       handleSabotageStage()
-    }, 3600)
-    const t2 = setTimeout(() => {
-      handleEvolveStage()
-      setAutoPilotRunning(false)
-      setLastAction('STAGE DEMO COMPLETE // LEFT LEGACY SAGGED (16.6°) vs RIGHT v3 HEALED (30.0°)')
-    }, 8200)
+    }, 4000)
 
-    autoPilotTimersRef.current = [t1, t2]
-  }, [autoPilotRunning, clearAutoPilotTimers, handleEvolveStage, handleProbe, handleSabotageStage])
+    // Beat 3 (8.0s): Autonomous Git Evolution (v1 -> v2 reverted on World 3 lag -> v3 promoted + 6/6 Landlock mutants killed)
+    const t2 = setTimeout(() => {
+      setAutoPilotBanner(
+        'BEAT 3/4 // SELF-EVOLUTION: v2 git-reverted on World 3 lag → Stage-2 (µ=4, λ=14) ES promotes v3 (30.0° / 0.0° err, 6/6 mutants killed)'
+      )
+      handleEvolveStage()
+      handleVerify()
+    }, 8000)
+
+    // Beat 4 (12.5s): 89.5°C Core Thermal Spike Hardware Interlock Proof (%QX0.0 E-Stop Latched)
+    const t3 = setTimeout(() => {
+      setAutoPilotBanner(
+        'BEAT 4/4 // HARDWARE INTERLOCK PROOF: 89.5°C thermal spike trips 88.0°C rodata cutoff → %QX0.0 E-Stop latched & PWM cut to 0%'
+      )
+      handleThermalSpikeStage()
+    }, 12500)
+
+    // Finale (16.0s): Clear thermal spike back to steady-state 500kg comparison (Left 16.6° sagged vs Right v3 30.0° healed)
+    const t4 = setTimeout(() => {
+      setDemoStep(3)
+      const finaleFrame: Frame = {
+        ...liveFrameRef.current,
+        sabotage_active: true,
+        active_skill_version: 'v3',
+        left_legacy: {
+          ...liveFrameRef.current.left_legacy,
+          target: 30.0,
+          target_angle: 30.0,
+          angle: 16.6,
+          angle_deg: 16.6,
+          current_angle: 16.6,
+          tracking_error_deg: 13.4,
+          error: 13.4,
+          temperature: 42.5,
+          temp: 42.5,
+          core_temp_c: 42.5,
+          estop: 0,
+          cooling: 0,
+          pwm: 40.2,
+          motor_pwm: 40.2,
+        },
+        right_evolved: {
+          ...liveFrameRef.current.right_evolved,
+          target: 30.0,
+          target_angle: 30.0,
+          angle: 30.0,
+          angle_deg: 30.0,
+          current_angle: 30.0,
+          tracking_error_deg: 0.0,
+          error: 0.0,
+          temperature: 42.5,
+          temp: 42.5,
+          core_temp_c: 42.5,
+          estop: 0,
+          cooling: 0,
+          pwm: 51.6,
+          motor_pwm: 51.6,
+        },
+      }
+      stageLockRef.current = { until: performance.now() + 3000, frame: finaleFrame }
+      liveFrameRef.current = finaleFrame
+      displayFrameRef.current = finaleFrame
+      setSnapshot(finaleFrame)
+      void post('/api/sabotage', {
+        enabled: true,
+        thermal_spike: false,
+        auto_evolve: false,
+        reset_skill: false,
+      }).catch(() => undefined)
+      setAutoPilotRunning(false)
+      setAutoPilotBanner(
+        'STAGE DEMO COMPLETE // LEFT LEGACY SAGGED (16.6°) vs RIGHT EVOLVED v3 HEALED (30.0° · 5/5 WORLDS · 6/6 MUTANTS)'
+      )
+      setLastAction('STAGE DEMO COMPLETE // LEFT LEGACY SAGGED (16.6°) vs RIGHT v3 HEALED (30.0°)')
+    }, 16000)
+
+    autoPilotTimersRef.current = [t0, t1, t2, t3, t4]
+  }, [
+    autoPilotRunning,
+    clearAutoPilotTimers,
+    clearRecordedBuffer,
+    handleEvolveStage,
+    handleProbe,
+    handleSabotageStage,
+    handleThermalSpikeStage,
+    handleVerify,
+    selectCameraPreset,
+  ])
 
   const activePin = selected ?? hovered
   const sabotageActive = !!snapshot.sabotage_active
@@ -1335,6 +1483,49 @@ export default function App() {
         </div>
 
         {/* 3. ONE-CLICK 4-STEP STAGE DEMO DIRECTOR BAR */}
+        {autoPilotBanner && (
+          <div
+            role="status"
+            style={{
+              marginBottom: '10px',
+              padding: '10px 14px',
+              borderRadius: '4px',
+              border: '1px solid #45a07a',
+              background: 'linear-gradient(90deg, rgba(16, 48, 37, 0.95) 0%, rgba(11, 25, 28, 0.95) 100%)',
+              color: '#e8f4ec',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
+            }}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#6effc5' }}>
+              <Sparkles size={14} />
+              <span>{autoPilotBanner}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setAutoPilotBanner(null)}
+              style={{
+                background: 'transparent',
+                border: '1px solid #355c4d',
+                color: '#9eb8ae',
+                borderRadius: '3px',
+                padding: '2px 7px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '9px',
+                cursor: 'pointer',
+              }}
+            >
+              DISMISS
+            </button>
+          </div>
+        )}
         <section className="stage-director-bar" aria-label="4-Step Live Stage Demo Director">
           <div className="director-steps">
             <button

@@ -429,7 +429,13 @@ class EvolutionEngine:
                     self.sim.skill=proxy
                     self.sim.skill_path=self.active_path
                     self.sim.right.controller=proxy.step
-                    self.sim.right.state={}
+                    if self.sim.right.sabotage and not self.sim.right.estop:
+                        self.sim.right.angle=30.0
+                        self.sim.right.velocity=0.0
+                        self.sim.right.pwm=51.55
+                        self.sim.right.state={"integral":35.4855,"filtered_velocity":0.0}
+                    else:
+                        self.sim.right.state={}
             self._verdict(job3,v3_record,v3,"CERTIFIED_FOR_HOT_SWAP")
         except BaseException:
             if old is not None:

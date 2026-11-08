@@ -1,14 +1,14 @@
 {
   "bus_id": "lazarus-twin-swarm-bus-v1",
   "protocol": "Fetch.ai uAgents + MongoDB Airgapped Verification Bus + Shared Swarm Memory",
-  "updated_at": "2026-11-07T23:53:07Z",
+  "updated_at": "2026-11-07T23:58:14Z",
   "agents": [
     {
       "agent_id": "agent://archaeologist-prober-01",
       "name": "ArchaeologistProberAgent",
       "role": "ELF Disassembly (morluto/rea) & 30-Step FFI Boundary Bisection",
       "status": "ONLINE",
-      "last_heartbeat": "2026-11-07T23:53:07Z",
+      "last_heartbeat": "2026-11-07T23:58:14Z",
       "metrics": {
         "binaries_probed": 3,
         "c_vectors_verified": "1000/1000 (100.0%)",
@@ -21,7 +21,7 @@
       "name": "PlcFirmwareReconstructorAgent",
       "role": "OpenPLC v4 IEC 61131-3 FFI & Fulmatic STM32F407 ARM Cortex-M4 Unicorn VFPv4 Prober",
       "status": "ONLINE",
-      "last_heartbeat": "2026-11-07T23:53:07Z",
+      "last_heartbeat": "2026-11-07T23:58:14Z",
       "metrics": {
         "openplc_located_globals": "7/7 (%IW0..%QX0.1)",
         "cortex_m4_thumb2_instr": 1102,
@@ -81,6 +81,22 @@
     }
   },
   "events": [
+    {
+      "id": "evt-94266",
+      "timestamp": "2026-11-07T23:58:14Z",
+      "agent": "PlcFirmwareReconstructorAgent",
+      "topic": "THERMAL_INTERLOCK_LATCHED",
+      "state": "SEEN",
+      "summary": "89.5\u00b0C thermal spike exceeded 88.0\u00b0C rodata threshold; %QX0.0 E-Stop latched & %QW0 cut to 0%."
+    },
+    {
+      "id": "evt-94145",
+      "timestamp": "2026-11-07T23:58:14Z",
+      "agent": "ArchaeologistProberAgent",
+      "topic": "FFI_BISECTION_CONVERGED",
+      "state": "SEEN",
+      "summary": "Probed 3 ELF binaries + 1,000/1,000 C FFI vectors + 262/262 Anvil EVM calls (88.0\u00b0C E-stop, 72.0\u00b0C cooling, \u00b145.0\u00b0 runaway)."
+    },
     {
       "id": "evt-87665",
       "timestamp": "2026-11-07T23:53:07Z",
